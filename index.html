@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<head>
+    <title>Monte Carlo Retirement Drawdown</title>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js" integrity="sha512-QSkVNOCYLtj73J4hbmVoOV6KVZuMluZlioC+trLpewV8qMjsWqlIQvkn1KGX2StWvPMdWGBqim1xlC8krl1EKQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script> -->
+
+</head>
+<body>
+    <canvas id="myChart" width="400px" height="400px"></canvas>
+
+    <script type="module">
+        import { Chart, registerables } from "https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.esm.js";
+        import { MonteCarloInputs, runMonteCarlo } from "./out/monteCarlo.js";
+        Chart.register(...registerables);
+
+
+    var ctx = document.getElementById('myChart').getContext('2d');
+var chart = new Chart(ctx, {
+    // The type of chart we want to create
+    type: 'line',
+
+    // The data for our dataset
+    data: {
+        labels: ["January", "February", "March", "April", "May", "June", "July"],
+        datasets: [{ // 0
+            label: "My First dataset",
+            backgroundColor: 'rgba(255, 0, 255, 0.5)',
+            borderColor: 'rgb(255, 99, 132)',
+            data: [0, 10, 5, 2, 20, 30, 45],
+            fill: '+1', 
+        },
+        { // 1
+            label: "My Second dataset",
+            backgroundColor: 'rgb(255, 255, 132)',
+            borderColor: 'rgb(255, 255, 132)',
+            data: [1, 12, 8, 20, 22, 33, 55],
+        },
+    ]
+    },
+
+    // Configuration options go here
+    options: {}
+});
+    </script>
+</body>
+</html>

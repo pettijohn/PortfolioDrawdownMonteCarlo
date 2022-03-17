@@ -1,0 +1,14 @@
+{
+    "compilerOptions": {
+      "module": "esnext",
+      "noImplicitAny": true,
+      "removeComments": true,
+      "preserveConstEnums": true,
+      "sourceMap": true,
+      "target": "esnext",
+      "outDir": "out"
+    },
+    "files": [
+      "monteCarlo.ts"
+    ]
+  }
