@@ -3,6 +3,6 @@ FROM node
 WORKDIR /code
 RUN npm install -g typescript
 #RUN npm install -g assemblyscript
+RUN npm install -g webpack webpack-cli
 
 VOLUME [ "/code" ]
-ENTRYPOINT [ "tsc" ]

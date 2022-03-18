@@ -1,8 +1,38 @@
 //import { DataItem, stringify } from "https://deno.land/std@0.126.0/encoding/csv.ts";
 
-export {}
+import { Chart, registerables } from "chart.js";
+Chart.register(...registerables);
 
-type MonteCarloInputs = {
+export function DrawChart(ctx: CanvasRenderingContext2D) {
+    var chart = new Chart(ctx, {
+        // The type of chart we want to create
+        type: 'line',
+
+        // The data for our dataset
+        data: {
+            labels: ["January", "February", "March", "April", "May", "June", "July"],
+            datasets: [{ // 0
+                label: "My First dataset",
+                backgroundColor: 'rgba(255, 0, 255, 0.5)',
+                borderColor: 'rgb(255, 99, 132)',
+                data: [0, 10, 5, 2, 20, 30, 45],
+                fill: '+1',
+            },
+            { // 1
+                label: "My Second dataset",
+                backgroundColor: 'rgb(255, 255, 132)',
+                borderColor: 'rgb(255, 255, 132)',
+                data: [1, 12, 8, 20, 22, 33, 55],
+            },
+            ]
+        },
+
+        // Configuration options go here
+        options: {}
+    });
+}
+
+export class MonteCarloInputs {
     years: number; // int
     savings: number; // int
     withdrawalRate: number; // float (percent)
@@ -25,8 +55,10 @@ type MonteCarloSimulation = {
     TOTAL_TRIALS: number;
     MAX_YEARS: number;
 }
+
+
 // Set simulation defaults
-const MONTE_CARLO: MonteCarloSimulation = {
+export const MONTE_CARLO: MonteCarloSimulation = {
     historicalData: (await ((await fetch("./data/historicalMarketData.json")).json())) as HistoricalDataItem[],
     inputs: {
         years: 30,
@@ -44,7 +76,7 @@ type SimResults = number[][];
 type SimYear = SimResults[number];
 type SimRunBalance = SimYear[number];
 
-async function runMonteCarlo(): Promise<SimResults | null> {
+export async function runMonteCarlo(): Promise<SimResults | null> {
     const data: MonteCarloInputs = (await ((await fetch("./data/userInput.json")).json())) as MonteCarloInputs;
     
     let total: number;

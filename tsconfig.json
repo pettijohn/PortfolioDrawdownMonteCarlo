@@ -1,12 +1,13 @@
 {
     "compilerOptions": {
-      "module": "esnext",
+      "module": "es2022",
       "noImplicitAny": true,
       "removeComments": true,
       "preserveConstEnums": true,
       "sourceMap": true,
-      "target": "esnext",
-      "outDir": "out"
+      "target": "es2022",
+      "outDir": "obj",
+      "moduleResolution": "node"
     },
     "files": [
       "monteCarlo.ts"

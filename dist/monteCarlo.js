@@ -1,4 +1,37 @@
-const MONTE_CARLO = {
+import { Chart, registerables } from "./node_modules/chart.js/types/index.esm";
+Chart.register(...registerables);
+export function DrawChart(ctx) {
+    var chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ["January", "February", "March", "April", "May", "June", "July"],
+            datasets: [{
+                    label: "My First dataset",
+                    backgroundColor: 'rgba(255, 0, 255, 0.5)',
+                    borderColor: 'rgb(255, 99, 132)',
+                    data: [0, 10, 5, 2, 20, 30, 45],
+                    fill: '+1',
+                },
+                {
+                    label: "My Second dataset",
+                    backgroundColor: 'rgb(255, 255, 132)',
+                    borderColor: 'rgb(255, 255, 132)',
+                    data: [1, 12, 8, 20, 22, 33, 55],
+                },
+            ]
+        },
+        options: {}
+    });
+}
+export class MonteCarloInputs {
+    years;
+    savings;
+    withdrawalRate;
+    stocks;
+    bonds;
+    cash;
+}
+export const MONTE_CARLO = {
     historicalData: (await ((await fetch("./data/historicalMarketData.json")).json())),
     inputs: {
         years: 30,
@@ -11,7 +44,7 @@ const MONTE_CARLO = {
     TOTAL_TRIALS: 255,
     MAX_YEARS: 10
 };
-async function runMonteCarlo() {
+export async function runMonteCarlo() {
     const data = (await ((await fetch("./data/userInput.json")).json()));
     let total;
     let error;
@@ -117,5 +150,4 @@ for (let t = 0; t < MONTE_CARLO.TOTAL_TRIALS; t++) {
     }
     transformedResults.push(r);
 }
-export {};
 //# sourceMappingURL=monteCarlo.js.map
