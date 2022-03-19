@@ -1,8 +1,11 @@
 FROM node
 
 WORKDIR /code
-RUN npm install -g typescript
+RUN npm install -g typescript 
+#RUN npm install --save-dev ts-node
 #RUN npm install -g assemblyscript
+
 RUN npm install -g webpack webpack-cli
 
+EXPOSE 9229
 VOLUME [ "/code" ]

@@ -1,7 +1,62 @@
 //import { DataItem, stringify } from "https://deno.land/std@0.126.0/encoding/csv.ts";
 
-import { Chart, registerables } from "chart.js";
-Chart.register(...registerables);
+// import { Chart, registerables } from 'chart.js';
+// Chart.register(...registerables);
+
+import {
+    Chart,
+    ArcElement,
+    LineElement,
+    BarElement,
+    PointElement,
+    BarController,
+    BubbleController,
+    DoughnutController,
+    LineController,
+    PieController,
+    PolarAreaController,
+    RadarController,
+    ScatterController,
+    CategoryScale,
+    LinearScale,
+    LogarithmicScale,
+    RadialLinearScale,
+    TimeScale,
+    TimeSeriesScale,
+    Decimation,
+    Filler,
+    Legend,
+    Title,
+    Tooltip,
+    SubTitle
+  } from 'chart.js';
+  
+  Chart.register(
+    ArcElement,
+    LineElement,
+    BarElement,
+    PointElement,
+    BarController,
+    BubbleController,
+    DoughnutController,
+    LineController,
+    PieController,
+    PolarAreaController,
+    RadarController,
+    ScatterController,
+    CategoryScale,
+    LinearScale,
+    LogarithmicScale,
+    RadialLinearScale,
+    TimeScale,
+    TimeSeriesScale,
+    Decimation,
+    Filler,
+    Legend,
+    Title,
+    Tooltip,
+    SubTitle
+  );
 
 export function DrawChart(ctx: CanvasRenderingContext2D) {
     var chart = new Chart(ctx, {
@@ -59,7 +114,7 @@ type MonteCarloSimulation = {
 
 // Set simulation defaults
 export const MONTE_CARLO: MonteCarloSimulation = {
-    historicalData: (await ((await fetch("./data/historicalMarketData.json")).json())) as HistoricalDataItem[],
+    historicalData: null,//(await ((await fetch("./data/historicalMarketData.json")).json())) as HistoricalDataItem[],
     inputs: {
         years: 30,
         savings: 100000,
@@ -77,7 +132,7 @@ type SimYear = SimResults[number];
 type SimRunBalance = SimYear[number];
 
 export async function runMonteCarlo(): Promise<SimResults | null> {
-    const data: MonteCarloInputs = (await ((await fetch("./data/userInput.json")).json())) as MonteCarloInputs;
+    const data: MonteCarloInputs = null; //(await ((await fetch("./data/userInput.json")).json())) as MonteCarloInputs;
     
     let total: number;
     let error: string | undefined;
@@ -200,24 +255,24 @@ function simulateDecumulation(): SimResults {
     return trials;
 }
 
-const results = await runMonteCarlo();
-if (results == null) throw "No results"; 
+// const results = await runMonteCarlo();
+// if (results == null) throw "No results"; 
 
-const columns = new Array<string>();
-columns.push("Trial");
-for (let y = 0; y < MONTE_CARLO.MAX_YEARS; y++) {
-    columns.push((y + 2022).toString());
-}
+// const columns = new Array<string>();
+// columns.push("Trial");
+// for (let y = 0; y < MONTE_CARLO.MAX_YEARS; y++) {
+//     columns.push((y + 2022).toString());
+// }
 
-const transformedResults = new Array<Record<string, number>>();
-for (let t = 0; t < MONTE_CARLO.TOTAL_TRIALS; t++) {
-    let r: Record<string, number> = { "Trial": t };
-    r["2022"] = MONTE_CARLO.inputs.savings;
-    for (let y = 1; y <= MONTE_CARLO.MAX_YEARS; y++) {
-        r[(y + 2022).toString()] = results[y][t];
-    }
-    transformedResults.push(r);
-}
+// const transformedResults = new Array<Record<string, number>>();
+// for (let t = 0; t < MONTE_CARLO.TOTAL_TRIALS; t++) {
+//     let r: Record<string, number> = { "Trial": t };
+//     r["2022"] = MONTE_CARLO.inputs.savings;
+//     for (let y = 1; y <= MONTE_CARLO.MAX_YEARS; y++) {
+//         r[(y + 2022).toString()] = results[y][t];
+//     }
+//     transformedResults.push(r);
+// }
 
-// const outCsv = await stringify(transformedResults, columns, { headers: true });
-// await Deno.writeTextFile("./montecarlo-output.csv", outCsv, { append: false });
+// // const outCsv = await stringify(transformedResults, columns, { headers: true });
+// // await Deno.writeTextFile("./montecarlo-output.csv", outCsv, { append: false });

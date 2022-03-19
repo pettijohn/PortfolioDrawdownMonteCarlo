@@ -1,0 +1,40 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "request": "launch",
+            "name": "Debug Node in WSL2 Docker",
+            "type": "node",
+            "cwd": "${workspaceFolder}",
+            "runtimeExecutable": "wsl.exe",
+            "runtimeArgs": [
+                "-e",
+                "sh",
+                "-c",
+                "./debug.sh"
+            ],
+            "attachSimplePort": 9229,
+            "stopOnEntry": false
+        },
+        {
+            "name": "ts-node & Docker - Launch",
+            "port": 9229,
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "localRoot": "${workspaceFolder}",
+            "remoteRoot": "/code",
+            "sourceMaps": true,
+            "skipFiles": ["<node_internals>/**"],
+            "type": "node",
+            "runtimeExecutable": "wsl.exe",
+            "runtimeArgs": [
+                "-e",
+                "sh",
+                "-c",
+                "./debug.sh"
+            ],
+            "stopOnEntry": true
+        }
+    ],
+    "compounds": []
+}
