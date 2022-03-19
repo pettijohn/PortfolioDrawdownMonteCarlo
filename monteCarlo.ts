@@ -1,7 +1,12 @@
 //import { DataItem, stringify } from "https://deno.land/std@0.126.0/encoding/csv.ts";
 
-// import { Chart, registerables } from 'chart.js';
-// Chart.register(...registerables);
+// import { Chart, registerables, ChartTypeRegistry } from 'chart.js';
+// Chart.register(ChartTypeRegistry.line);
+
+let i = 3;
+i += 4;
+debugger;
+console.log(i);
 
 import {
     Chart,
@@ -61,7 +66,7 @@ import {
 export function DrawChart(ctx: CanvasRenderingContext2D) {
     var chart = new Chart(ctx, {
         // The type of chart we want to create
-        type: 'line',
+        type: 'line',//typeof(ChartTypeRegistry.line),
 
         // The data for our dataset
         data: {

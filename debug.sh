@@ -1,1 +1,1 @@
-docker run --rm -v=${PWD}:/code -P tsc node -r ts-node/register --inspect=0.0.0.0:9229 monteCarlo.ts
+docker run --rm -v=${PWD}:/code -p=9229:9229 tsc node -r ts-node/register --inspect=0.0.0.0:9229 /code/monteCarlo.ts
