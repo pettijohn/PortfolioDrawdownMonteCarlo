@@ -2,7 +2,13 @@
 Run a Monte Carlo simulation of a portfolio drawn down during retirement and visualize the results. 
 
 # Live 
+
 This runs live at https://pettijohn.github.io/PortfolioDrawdownMonteCarlo/ 
 
-# Build
-Build-time dependencies are in a Docker container; that's all you need installed to build. Run `build.sh` to create the build container and compile; artifacts land in `./out`. Current directory `.` maps to `/code` in the container.
+**Current status**: Janky visualization on hard-coded inputs.
+
+# Backlog
+* Accept inputs!
+* Add visualiztion, normalized to today's dollars
+* Make the colors not horrible
+* Explain what you're looking at
