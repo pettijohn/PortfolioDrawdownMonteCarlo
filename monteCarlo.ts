@@ -1,104 +1,12 @@
 //import { DataItem, stringify } from "https://deno.land/std@0.126.0/encoding/csv.ts";
 
-// import { Chart, registerables, ChartTypeRegistry } from 'chart.js';
-// Chart.register(ChartTypeRegistry.line);
-
-let i = 3;
-i += 4;
-debugger;
-console.log(i);
-
-import {
-    Chart,
-    ArcElement,
-    LineElement,
-    BarElement,
-    PointElement,
-    BarController,
-    BubbleController,
-    DoughnutController,
-    LineController,
-    PieController,
-    PolarAreaController,
-    RadarController,
-    ScatterController,
-    CategoryScale,
-    LinearScale,
-    LogarithmicScale,
-    RadialLinearScale,
-    TimeScale,
-    TimeSeriesScale,
-    Decimation,
-    Filler,
-    Legend,
-    Title,
-    Tooltip,
-    SubTitle
-  } from 'chart.js';
-  
-  Chart.register(
-    ArcElement,
-    LineElement,
-    BarElement,
-    PointElement,
-    BarController,
-    BubbleController,
-    DoughnutController,
-    LineController,
-    PieController,
-    PolarAreaController,
-    RadarController,
-    ScatterController,
-    CategoryScale,
-    LinearScale,
-    LogarithmicScale,
-    RadialLinearScale,
-    TimeScale,
-    TimeSeriesScale,
-    Decimation,
-    Filler,
-    Legend,
-    Title,
-    Tooltip,
-    SubTitle
-  );
-
-export function DrawChart(ctx: CanvasRenderingContext2D) {
-    var chart = new Chart(ctx, {
-        // The type of chart we want to create
-        type: 'line',//typeof(ChartTypeRegistry.line),
-
-        // The data for our dataset
-        data: {
-            labels: ["January", "February", "March", "April", "May", "June", "July"],
-            datasets: [{ // 0
-                label: "My First dataset",
-                backgroundColor: 'rgba(255, 0, 255, 0.5)',
-                borderColor: 'rgb(255, 99, 132)',
-                data: [0, 10, 5, 2, 20, 30, 45],
-                fill: '+1',
-            },
-            { // 1
-                label: "My Second dataset",
-                backgroundColor: 'rgb(255, 255, 132)',
-                borderColor: 'rgb(255, 255, 132)',
-                data: [1, 12, 8, 20, 22, 33, 55],
-            },
-            ]
-        },
-
-        // Configuration options go here
-        options: {}
-    });
-}
-
 export class MonteCarloInputs {
-    years: number; // int
-    savings: number; // int
-    withdrawalRate: number; // float (percent)
-    stocks: number; // float (percent)
-    bonds: number; // float (percent)
-    cash: number; // float (percent)
+    years = 50; // int
+    savings = 1000000; // int
+    withdrawalRate = 0.04; // float (percent)
+    stocks = 0.5; // float (percent)
+    bonds = 0.3; // float (percent)
+    cash = 0.2; // float (percent)
 }
 
 type HistoricalDataItem = {
@@ -109,45 +17,34 @@ type HistoricalDataItem = {
     cpi: number;
 }
 
-type MonteCarloSimulation = {
-    historicalData: Array<HistoricalDataItem>;
-    inputs: MonteCarloInputs;
-    TOTAL_TRIALS: number;
-    MAX_YEARS: number;
+let historicalData: HistoricalDataItem[];
+if ("Deno" in window) {
+    historicalData = JSON.parse(await Deno.readTextFile("./data/historicalMarketData.json")) as HistoricalDataItem[];
+} else {
+    historicalData = (await ((await fetch("./data/historicalMarketData.json")).json())) as HistoricalDataItem[];
+}
+const MONTE_CARLO = {
+    inputs: new MonteCarloInputs(),
+    historicalData: historicalData,
+    TOTAL_TRIALS: 100000,
+    MAX_YEARS: 50
 }
 
 
-// Set simulation defaults
-export const MONTE_CARLO: MonteCarloSimulation = {
-    historicalData: null,//(await ((await fetch("./data/historicalMarketData.json")).json())) as HistoricalDataItem[],
-    inputs: {
-        years: 30,
-        savings: 100000,
-        withdrawalRate: 0.045,
-        stocks: 0.50,
-        bonds: 0.30,
-        cash: 0.20
-    },
-    TOTAL_TRIALS: 255,
-    MAX_YEARS: 10
-};
+// // Set simulation defaults
+// export const MONTE_CARLO: MonteCarloSimulation = {
+//     historicalData: (await ((await fetch("./data/historicalMarketData.json")).json())) as HistoricalDataItem[],
+//     inputs: new MonteCarloInputs(),
+//     TOTAL_TRIALS: 100000n,
+//     MAX_YEARS: 50n
+// };
 
-type SimResults = number[][];
-type SimYear = SimResults[number];
-type SimRunBalance = SimYear[number];
+export function runMonteCarlo(): SimResults | null {
 
-export async function runMonteCarlo(): Promise<SimResults | null> {
-    const data: MonteCarloInputs = null; //(await ((await fetch("./data/userInput.json")).json())) as MonteCarloInputs;
     
     let total: number;
     let error: string | undefined;
 
-    MONTE_CARLO.inputs.years = data.years; 
-    MONTE_CARLO.inputs.savings = data.savings;
-    MONTE_CARLO.inputs.withdrawalRate = data.withdrawalRate;
-    MONTE_CARLO.inputs.stocks = data.stocks;
-    MONTE_CARLO.inputs.bonds = data.bonds;
-    MONTE_CARLO.inputs.cash = data.cash;
     if (isNaN(MONTE_CARLO.inputs.years) || (MONTE_CARLO.inputs.years < 5) || (MONTE_CARLO.inputs.years > 50)) {
         error = "Invalid years";
     }
@@ -174,7 +71,13 @@ export async function runMonteCarlo(): Promise<SimResults | null> {
 
     if (error === undefined) {
         trace("savings: " + MONTE_CARLO.inputs.savings + " years: " + MONTE_CARLO.inputs.years + " withdrawalRate: " + MONTE_CARLO.inputs.withdrawalRate + " stocks: " + MONTE_CARLO.inputs.stocks + " bonds: " + MONTE_CARLO.inputs.bonds + " cash: " + MONTE_CARLO.inputs.cash);
-        return simulateDecumulation();
+        const trials = simulateDecumulation();
+        
+        trace("Simulation complete, computing stats.");
+        const deciles = computeStats(trials, 4);
+        console.log(JSON.stringify(deciles));
+
+        return trials;
     }
     else {
         trace("SIMULATION FAILED");
@@ -183,7 +86,7 @@ export async function runMonteCarlo(): Promise<SimResults | null> {
     return null;
 }
 
-// Console log and/or swallow any errors
+/** Console log and/or swallow any errors */
 function trace(msg: string) {
     try {
         if (typeof console === "undefined") {
@@ -196,6 +99,8 @@ function trace(msg: string) {
 }
 
 
+
+
 /*
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
@@ -204,61 +109,161 @@ SIMULATION model
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 */
 
+//type SimResults = number[][];
+
+type SimResult = {
+    startingBalance: number;
+    withdrawal: number;
+    endingBalance: number;
+    growthRate: number;
+}
+
+/** A 2D array where each year has 100k trials */
+type SimResults = { [simYear: number]: { [trialNum: number]: SimResult} };
+
+/** Run the Monte Carlo Simulation and return a 2D array; for each year#, 100k trials with the balance */
 function simulateDecumulation(): SimResults {
-    "use strict";
 
-    let
-        averageRateOfReturn : number,
-        periods: number,
-        withdrawal: number,
-        i: number,
-        t: number,
-        randomYear: number,
-        balance: number,
-        arr: number;
-
-    averageRateOfReturn = 0;
-    periods = 0;
-    const trials: SimResults = [];
-    const probabilities: number[] = [1];
+    const trials: SimResults = {};
     const initialWithdrawal = MONTE_CARLO.inputs.savings * MONTE_CARLO.inputs.withdrawalRate;
 
-    for (i = 1; i <= MONTE_CARLO.MAX_YEARS; i++) {
-        // a 2D array. [year#][simulation#]
-        // Initialize each year to empty array 
-        trials[i] = [];
-        // Array of year#
-        probabilities[i] = 0;
+    // Initialize the 50 years
+    for (let y = 1; y <= MONTE_CARLO.MAX_YEARS; y++) {
+        trials[y] = {};
     }
 
-    for (t = 0; t < MONTE_CARLO.TOTAL_TRIALS; t++) {
-        balance = MONTE_CARLO.inputs.savings;
-        withdrawal = initialWithdrawal;
-        for (i = 1; i <= MONTE_CARLO.MAX_YEARS; i++) {
+    // Run 100k trials, 50 years per trial. 
+    for (let trial = 0; trial < MONTE_CARLO.TOTAL_TRIALS; trial++) {
+        let balance = MONTE_CARLO.inputs.savings;
+        let withdrawal = initialWithdrawal;
+        for (let year = 1; year <= MONTE_CARLO.MAX_YEARS; year++) {
             // Pick a random year to use its asset performance 
-            randomYear = Math.floor(Math.random() * MONTE_CARLO.historicalData.length);
+            const randomYear = Math.floor(Math.random() * MONTE_CARLO.historicalData.length);
+            // Adjust withdrawal amount this year for inflation 
             withdrawal *= (1 + MONTE_CARLO.historicalData[randomYear].cpi);
+            const startingBalance = balance;
+
+            // Weight the growth per asset class relative to portfolio split
+            const arr = MONTE_CARLO.historicalData[randomYear].stocks * MONTE_CARLO.inputs.stocks
+                + MONTE_CARLO.historicalData[randomYear].bonds * MONTE_CARLO.inputs.bonds
+                + MONTE_CARLO.historicalData[randomYear].cash * MONTE_CARLO.inputs.cash;
+            
             if (balance < withdrawal) {
+                // If we run out of money, keep decrementing balance, but don't compute growth rate of assets. 
+                // TODO should we just zero out?
                 balance -= withdrawal;
             } else {
-                arr = 1;
-                periods++;
-                arr = MONTE_CARLO.historicalData[randomYear].stocks * MONTE_CARLO.inputs.stocks + MONTE_CARLO.historicalData[randomYear].bonds * MONTE_CARLO.inputs.bonds + MONTE_CARLO.historicalData[randomYear].cash * MONTE_CARLO.inputs.cash;
-                averageRateOfReturn += (arr);
+                // Apply growth factor to balance at end of year
                 balance = (balance - withdrawal) * (1 + arr);
-                // Count the number of times we still have money in this year 
-                probabilities[i]++;
+
             }
-            // add a small amount of randomness; otherwise, the quickSort will cause recursion errors
-            trials[i].push(balance + Math.random() / 100);
+            trials[year][trial] = {
+                startingBalance: startingBalance,
+                withdrawal: withdrawal,
+                endingBalance: balance,
+                growthRate: arr
+            };
         }
     }
 
-    averageRateOfReturn /= periods;
-    trace(`Average rate of return through all simulations: ${averageRateOfReturn}`);
-
     return trials;
 }
+
+/** Results from a single year, the stats of the 100k simulations */
+type StatResult = {
+    min: number,
+    max: number,
+    mean: number,
+    median: number,
+    stddev: number,
+    quantiles: number[]
+}
+
+type StatResults = { [simYear: number]: StatResult };
+
+/** Of the 100k results, sort each year's endingBalance, then, compute statistics.  */
+function computeStats(trials: SimResults, quantiles: number): StatResults {
+    const sortedTrials: SimResult[][] = [];
+    
+    if (quantiles < 2) throw "Quantiles too small.";
+
+    for (let year = 1; year <= MONTE_CARLO.MAX_YEARS; year++) {
+        const resultsForYear = Object.values(trials[year]);
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort#description
+        resultsForYear.sort((t1, t2) => { return t1.endingBalance - t2.endingBalance });
+
+        sortedTrials.push(resultsForYear);
+    }
+
+    const results: StatResults = {};
+
+    for (let year = 0; year <= MONTE_CARLO.MAX_YEARS; year++) {
+        // Compute quantiles
+        // Initialize results. 
+        // Leave thes values for year 0. 
+        results[year] = {
+            min: MONTE_CARLO.inputs.savings,
+            max: MONTE_CARLO.inputs.savings,
+            mean: MONTE_CARLO.inputs.savings,
+            median: MONTE_CARLO.inputs.savings,
+            stddev: 0,
+            quantiles: []
+        };
+        for (let q = 1; q < quantiles; q++) {
+            if (year === 0) {
+                // Year 0 is always starting balance 
+                results[0].quantiles.push(MONTE_CARLO.inputs.savings);
+            }
+            else {
+                // Compute the index into the results array, q% at a time, and push the ending balance
+                let index = Math.floor(MONTE_CARLO.TOTAL_TRIALS * (q / quantiles));
+                //check an overflow, and adjust max index
+                if (index >= MONTE_CARLO.TOTAL_TRIALS) {
+                    index = MONTE_CARLO.TOTAL_TRIALS - 1;
+                }
+                //trace(`Year ${year} / Trial ${index}`);
+                results[year].quantiles.push(sortedTrials[year-1][index].endingBalance);
+            }
+        }
+
+        if (year === 0) continue;
+
+        // Median is the middlemost value
+        results[year].min = sortedTrials[year-1][0].endingBalance;
+        results[year].median = sortedTrials[year-1][Math.floor(MONTE_CARLO.TOTAL_TRIALS * 0.5)].endingBalance;
+        results[year].max = sortedTrials[year - 1][(MONTE_CARLO.TOTAL_TRIALS - 1)].endingBalance;
+        
+        const simYearTotal = sortedTrials[year - 1].reduce((acc, curr) => acc + curr.endingBalance, 0);
+        results[year].mean = simYearTotal / sortedTrials[year - 1].length;
+        results[year].stddev = stddev(sortedTrials[year - 1].map(t => t.endingBalance));
+    }
+    
+    
+    return results;
+}
+
+function stddev(arr: number[]){
+    // Creating the mean with Array.reduce
+    const mean = arr.reduce((acc, curr)=>{
+      return acc + curr
+    }, 0) / arr.length;
+     
+    // Assigning (value - mean) ^ 2 to every array item
+    arr = arr.map((k)=>{
+      return (k - mean) ** 2
+    })
+     
+    // Calculating the sum of updated array
+   const sum = arr.reduce((acc, curr)=> acc + curr, 0);
+    
+//    // Calculating the variance
+//    const variance = sum / arr.length
+    
+   // Returning the Standered deviation
+   return Math.sqrt(sum / arr.length)
+}
+
+runMonteCarlo();
 
 // const results = await runMonteCarlo();
 // if (results == null) throw "No results"; 
