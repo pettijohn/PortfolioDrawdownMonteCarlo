@@ -2,24 +2,19 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "ts-node & Docker - Launch",
-            "attachSimplePort": 9229,
             "request": "launch",
-            "cwd": "${workspaceFolder}",
-            "localRoot": "${workspaceFolder}",
-            "remoteRoot": "/code",
-            "sourceMaps": true,
-            "skipFiles": ["<node_internals>/**"],
+            "name": "Launch and Attach Deno",
             "type": "node",
-            "runtimeExecutable": "wsl.exe",
+            "program": "${workspaceFolder}/monteCarlo.ts",
+            "cwd": "${workspaceFolder}",
+            "runtimeExecutable": "C:\\Users\\travispe\\.deno\\bin\\deno.EXE",
             "runtimeArgs": [
-                "-e",
-                "sh",
-                "-c",
-                "./debug.sh"
+                "run",
+                "--inspect-brk",
+                "--allow-all"
             ],
-            "stopOnEntry": true
+            "attachSimplePort": 9229,
+            "stopOnEntry": false
         }
-    ],
-    "compounds": []
+    ]
 }

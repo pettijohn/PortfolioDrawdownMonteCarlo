@@ -2,24 +2,14 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "Docker Build - Custom",
+			"label": "Bundle",
 			"type": "shell",
-			"command": "./build.sh",
+			"command": "deno bundle monteCarlo.ts out/monteCarlo.bundle.js",
 			"problemMatcher": [ "$tsc" ],
 			"group": {
 				"kind": "build",
 				"isDefault": true
-			},
-			"options": {
-                "shell": {
-                    "executable": "wsl.exe",
-                    "args": [
-                    	"-e",
-                      	"sh",
-                        "-c"
-                    ]
-                }
-            },
+			}
 		}
 	]
 }
