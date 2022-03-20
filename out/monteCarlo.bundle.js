@@ -22,7 +22,7 @@ const MONTE_CARLO = {
     TOTAL_TRIALS: 100000,
     MAX_YEARS: 50
 };
-function runMonteCarlo() {
+function runMonteCarlo(quantiles) {
     let total;
     let error;
     if (isNaN(MONTE_CARLO.inputs.years) || MONTE_CARLO.inputs.years < 5 || MONTE_CARLO.inputs.years > 50) {
@@ -50,9 +50,8 @@ function runMonteCarlo() {
         trace("savings: " + MONTE_CARLO.inputs.savings + " years: " + MONTE_CARLO.inputs.years + " withdrawalRate: " + MONTE_CARLO.inputs.withdrawalRate + " stocks: " + MONTE_CARLO.inputs.stocks + " bonds: " + MONTE_CARLO.inputs.bonds + " cash: " + MONTE_CARLO.inputs.cash);
         const trials = simulateDecumulation();
         trace("Simulation complete, computing stats.");
-        const deciles = computeStats(trials, 4);
-        console.log(JSON.stringify(deciles));
-        return trials;
+        const simulationStats1 = computeStats(trials, quantiles);
+        return simulationStats1;
     } else {
         trace("SIMULATION FAILED");
         trace(error);
@@ -150,6 +149,7 @@ function stddev(arr) {
     , 0);
     return Math.sqrt(sum / arr.length);
 }
-runMonteCarlo();
+const simulationStats = runMonteCarlo(4);
 export { MonteCarloInputs as MonteCarloInputs };
 export { runMonteCarlo as runMonteCarlo };
+export { simulationStats as simulationStats };

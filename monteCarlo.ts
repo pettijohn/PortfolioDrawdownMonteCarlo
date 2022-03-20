@@ -30,16 +30,7 @@ const MONTE_CARLO = {
     MAX_YEARS: 50
 }
 
-
-// // Set simulation defaults
-// export const MONTE_CARLO: MonteCarloSimulation = {
-//     historicalData: (await ((await fetch("./data/historicalMarketData.json")).json())) as HistoricalDataItem[],
-//     inputs: new MonteCarloInputs(),
-//     TOTAL_TRIALS: 100000n,
-//     MAX_YEARS: 50n
-// };
-
-export function runMonteCarlo(): SimResults | null {
+export function runMonteCarlo(quantiles: number): StatResults | null {
 
     
     let total: number;
@@ -74,10 +65,10 @@ export function runMonteCarlo(): SimResults | null {
         const trials = simulateDecumulation();
         
         trace("Simulation complete, computing stats.");
-        const deciles = computeStats(trials, 4);
-        console.log(JSON.stringify(deciles));
+        const simulationStats = computeStats(trials, quantiles);
+        //console.log(JSON.stringify(deciles));
 
-        return trials;
+        return simulationStats;
     }
     else {
         trace("SIMULATION FAILED");
@@ -179,7 +170,7 @@ type StatResult = {
     quantiles: number[]
 }
 
-type StatResults = { [simYear: number]: StatResult };
+export type StatResults = { [simYear: number]: StatResult };
 
 /** Of the 100k results, sort each year's endingBalance, then, compute statistics.  */
 function computeStats(trials: SimResults, quantiles: number): StatResults {
@@ -263,26 +254,5 @@ function stddev(arr: number[]){
    return Math.sqrt(sum / arr.length)
 }
 
-runMonteCarlo();
+export const simulationStats = runMonteCarlo(4);
 
-// const results = await runMonteCarlo();
-// if (results == null) throw "No results"; 
-
-// const columns = new Array<string>();
-// columns.push("Trial");
-// for (let y = 0; y < MONTE_CARLO.MAX_YEARS; y++) {
-//     columns.push((y + 2022).toString());
-// }
-
-// const transformedResults = new Array<Record<string, number>>();
-// for (let t = 0; t < MONTE_CARLO.TOTAL_TRIALS; t++) {
-//     let r: Record<string, number> = { "Trial": t };
-//     r["2022"] = MONTE_CARLO.inputs.savings;
-//     for (let y = 1; y <= MONTE_CARLO.MAX_YEARS; y++) {
-//         r[(y + 2022).toString()] = results[y][t];
-//     }
-//     transformedResults.push(r);
-// }
-
-// // const outCsv = await stringify(transformedResults, columns, { headers: true });
-// // await Deno.writeTextFile("./montecarlo-output.csv", outCsv, { append: false });
