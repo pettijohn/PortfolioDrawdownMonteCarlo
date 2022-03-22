@@ -1,5 +1,7 @@
 //import { DataItem, stringify } from "https://deno.land/std@0.126.0/encoding/csv.ts";
 
+import { Chart, ChartItem, registerables } from "https://esm.sh/chart.js@3.7.1?target=deno";
+
 export class MonteCarloInputs {
     years = 50; // int
     savings = 1000000; // int
@@ -107,6 +109,8 @@ type SimResult = {
     withdrawal: number;
     endingBalance: number;
     growthRate: number;
+    cumulativeInflation: number;
+    endingBalanceTodaysDollars: number;
 }
 
 /** A 2D array where each year has 100k trials */
@@ -152,7 +156,9 @@ function simulateDecumulation(): SimResults {
                 startingBalance: startingBalance,
                 withdrawal: withdrawal,
                 endingBalance: balance,
-                growthRate: arr
+                growthRate: arr,
+                cumulativeInflation: withdrawal / initialWithdrawal,
+                endingBalanceTodaysDollars: balance / (withdrawal / initialWithdrawal)
             };
         }
     }
@@ -254,5 +260,76 @@ function stddev(arr: number[]){
    return Math.sqrt(sum / arr.length)
 }
 
-export const simulationStats = runMonteCarlo(4);
+export function drawChart(ctx: ChartItem, simulationStats: StatResults) {
+    Chart.register(...registerables);
+    const _chart = new Chart(ctx, {
+        // The type of chart we want to create
+        type: 'line',
+
+        // The data for our dataset
+        data: {
+            labels: Object.keys(simulationStats),
+            datasets: [{ // 0
+                label: "min",
+                backgroundColor: 'rgba(255, 0, 255, 0.5)',
+                borderColor: 'rgb(255, 99, 132)',
+                data: Object.values(simulationStats).map(s => s.min),
+                //fill: '+1', 
+            },
+            // { // 1
+            //     label: "max",
+            //     // backgroundColor: 'rgb(255, 255, 132)',
+            //     // borderColor: 'rgb(255, 255, 132)',
+            //     data: Object.values(simulationStats).map(s => s.max),
+            // },
+            { 
+                label: "mean",
+                backgroundColor: 'rgb(0, 255, 0)',
+                borderColor: 'rgb(0, 0, 0)',
+                data: Object.values(simulationStats).map(s => s.mean),
+            },
+            // { 
+            //     label: "median",
+            //     backgroundColor: 'rgb(0, 255, 0)',
+            //     borderColor: 'rgb(255, 255, 132)',
+            //     data: Object.values(simulationStats).map(s => s.median),
+            // },
+            { 
+                label: "stddev_low",
+                backgroundColor: 'rgb(255, 255, 132)',
+                borderColor: 'rgb(255, 255, 132)',
+                data: Object.values(simulationStats).map(s => s.mean - s.stddev),
+                //fill: '+1'
+            },
+            { 
+                label: "stddev_high",
+                backgroundColor: 'rgb(255, 255, 132)',
+                borderColor: 'rgb(255, 255, 132)',
+                data: Object.values(simulationStats).map(s => s.mean + s.stddev),
+            },
+            { 
+                label: "q0",
+                backgroundColor: 'rgb(0, 0, 0)',
+                borderColor: 'rgb(255, 0, 0)',
+                data: Object.values(simulationStats).map(s => s.quantiles[0]),
+            },
+            { 
+                label: "q1",
+                backgroundColor: 'rgb(0, 0, 0)',
+                borderColor: 'rgb(255, 0, 0)',
+                data: Object.values(simulationStats).map(s => s.quantiles[1]),
+            },
+            { 
+                label: "q2",
+                backgroundColor: 'rgb(0, 0, 0)',
+                borderColor: 'rgb(255, 0, 0)',
+                data: Object.values(simulationStats).map(s => s.quantiles[2]),
+            },
+        ]
+        },
+
+        // Configuration options go here
+        options: {}
+    });
+}
 
