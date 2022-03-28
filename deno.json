@@ -1,5 +1,8 @@
 {
     "compilerOptions": {
       "lib": ["dom", "dom.iterable", "dom.asynciterable", "deno.ns"]
+    },
+    "deno.suggest.imports.hosts": {
+      "https://deno.land": true
     }
 }
