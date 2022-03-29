@@ -1,26 +1,12 @@
 <!DOCTYPE html>
+<html>
 <head>
-    <title>Portfolio Drawdown Monte Carlo</title>
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js" integrity="sha512-QSkVNOCYLtj73J4hbmVoOV6KVZuMluZlioC+trLpewV8qMjsWqlIQvkn1KGX2StWvPMdWGBqim1xlC8krl1EKQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script> -->
+  <title>Portfolio Drawdown Monte Carlo</title>
+  <link rel="stylesheet" type="text/css" href="style.css" />
 </head>
 <body>
-    <h1>Portfolio Drawdown Monte Carlo</h1>
-    <p>This simulation uses historical market data to determine how your portfolio will fare over 30 or 50 years of retirement. It is inspired by 
-        <a href="https://retirementplans.vanguard.com/VGApp/pe/pubeducation/calculators/RetirementNestEggCalc.jsf">Vanguard's Retirement Nest Egg Calculator</a>
-        but with (in my opinion) better visualizations. 
-    </p>
+  <div id="root"></div>
+  <script src="./out/monteCarlo.bundle.js" type="module"></script>
 
-    <canvas id="myChart" width="400px" height="400px"></canvas>
-    <script src="./out/monteCarlo.bundle.js" type="module"></script>
-    <script type="module">
-        import { MonteCarloInputs, runMonteCarlo, drawChart } from "./out/monteCarlo.bundle.js";
-
-        var ctx = document.getElementById('myChart').getContext('2d');
-        const simulationStats = runMonteCarlo(4);
-        if (simulationStats != null) {
-            drawChart(ctx, simulationStats);
-        }
-            
-    </script>
 </body>
 </html>

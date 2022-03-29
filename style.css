@@ -1,0 +1,8 @@
+input.slider {
+    width: 30em;
+}
+
+label.slider {
+    width: 13em;
+    display: inline-flex;
+}
