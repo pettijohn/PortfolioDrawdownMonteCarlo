@@ -28,22 +28,59 @@ export class Allocation extends React.Component<Portfolio, Portfolio> {
         return (
             <div><h2>Portfolio Allocation</h2>
                 <ul>
-                    <li>Total starting balance USD: <input type="text" id="startingBalance" defaultValue={this.props.startingBalance} onChange={this.handleChange} />
+                    <li>Total starting balance USD: <input type="text" id="startingBalance" value={this.state.startingBalance} onChange={this.handleChange} />
                         <span>{this.formatter.format(this.state.startingBalance)}</span></li>
-                    <li>Drawdown per Year: <input type="range" min="0" max="20" step="0.1" defaultValue={this.props.drawdownRate} id="drawdownRate" onChange={this.handleChange} />
+                    <li>Drawdown per Year: <input type="range" min="0" max="20" step="0.1" value={this.state.drawdownRate} id="drawdownRate" onChange={this.handleChange} />
                         <span>{this.state.drawdownRate}%
                             == {this.formatter.format(this.state.startingBalance * (this.state.drawdownRate / 100))} per year</span></li>
+                     <li>Portfolio Allocation Stocks: <input type="range" min="0" max="100" value={this.state.stocksPercent} id="stocksPercent" onChange={this.handleChange} />
+                        <span>{this.state.stocksPercent}</span></li>
                     <li>Portfolio Allocation Bonds: <input type="range" min="0" max="100" value={this.state.bondsPercent} id="bondsPercent" onChange={this.handleChange} />
                         <span>{this.state.bondsPercent}</span></li>
-                    <li>Portfolio Allocation Stocks: <input type="range" min="0" max="100" defaultValue={this.props.stocksPercent} id="stocksPercent" onChange={this.handleChange} />
-                        <span>{this.state.stocksPercent}</span></li>
-                    <li>Portfolio Allocation Cash: <input type="range" min="0" max="100" defaultValue={this.props.cashPercent} id="cashPercent" onChange={this.handleChange} />
+                    <li>Portfolio Allocation Cash: <input type="range" min="0" max="100" value={this.state.cashPercent} id="cashPercent" onChange={this.handleChange} />
                         <span>{this.state.cashPercent}</span></li>
                 </ul> </div>
         )
     }
 
 
+    setAllocationState(stocks?: number, bonds?: number, cash?: number) {
+        this.setState(function (state, _props) {
+            // Only one value will change at a time
+            if (stocks) {
+                // Only update bonds, unless there's not room, then update Cash too
+                const balance = 100 - stocks;
+                let bondBalance = balance - state.cashPercent;
+                if (bondBalance < 0) bondBalance = 0;
+                return {
+                    stocksPercent: stocks,
+                    bondsPercent: bondBalance,
+                    cashPercent: 100 - stocks - bondBalance
+                };
+            }
+            else if (bonds) {
+                // Only update cash, unless there's not room, then update stocks too
+                let cashBalance = 100 - state.stocksPercent - bonds;
+                if (cashBalance < 0) cashBalance = 0;
+                return {
+                    stocksPercent: 100 - bonds - cashBalance,
+                    bondsPercent: bonds,
+                    cashPercent: cashBalance
+                };
+            }
+            else if (cash) { 
+                // Only update bonds, unless there's not room, then update stocks too
+                let bondBalance = 100 - state.stocksPercent - cash;
+                if (bondBalance < 0) bondBalance = 0;
+                return {
+                    stocksPercent: 100 - bondBalance - cash,
+                    bondsPercent: bondBalance,
+                    cashPercent: cash
+                }
+            }
+            else return {...state};
+        });
+    }
 
     handleChange(event: React.ChangeEvent<HTMLInputElement>) {
         // console.log(this);
@@ -59,14 +96,15 @@ export class Allocation extends React.Component<Portfolio, Portfolio> {
             case "drawdownRate":
                 this.setState({ [key]: value });
                 break;
-            case "bondsPercent":
-                this.setState({ [key]: value });
-                break;
             case "stocksPercent":
-                this.setState({ [key]: value });
+                this.setAllocationState(value, undefined, undefined);
+                break;
+            case "bondsPercent":
+                this.setAllocationState(undefined, value, undefined);
                 break;
             case "cashPercent":
-                this.setState({ [key]: value });
+                this.setAllocationState(undefined, undefined, value);
+                //this.setState({ [key]: value });
                 break;
             default:
                 break;
