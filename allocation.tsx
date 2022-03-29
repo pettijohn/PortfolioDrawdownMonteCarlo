@@ -47,7 +47,7 @@ export class Allocation extends React.Component<Portfolio, Portfolio> {
     setAllocationState(stocks?: number, bonds?: number, cash?: number) {
         this.setState(function (state, _props) {
             // Only one value will change at a time
-            if (stocks) {
+            if (stocks != null) {
                 // Only update bonds, unless there's not room, then update Cash too
                 const balance = 100 - stocks;
                 let bondBalance = balance - state.cashPercent;
@@ -58,7 +58,7 @@ export class Allocation extends React.Component<Portfolio, Portfolio> {
                     cashPercent: 100 - stocks - bondBalance
                 };
             }
-            else if (bonds) {
+            else if (bonds != null) {
                 // Only update cash, unless there's not room, then update stocks too
                 let cashBalance = 100 - state.stocksPercent - bonds;
                 if (cashBalance < 0) cashBalance = 0;
@@ -68,7 +68,7 @@ export class Allocation extends React.Component<Portfolio, Portfolio> {
                     cashPercent: cashBalance
                 };
             }
-            else if (cash) { 
+            else if (cash != null) { 
                 // Only update bonds, unless there's not room, then update stocks too
                 let bondBalance = 100 - state.stocksPercent - cash;
                 if (bondBalance < 0) bondBalance = 0;
