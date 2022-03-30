@@ -1,17 +1,15 @@
 // /** @jsxImportSource https://esm.sh/react@17.0.2 */
 // Shouldn't need above on every .tsx file - https://github.com/denoland/deno/issues/13389
 
-import React from "https://esm.sh/react@17.0.2?target=deno";
-import ReactDOM from "https://esm.sh/react-dom@17.0.2?target=deno";
+import React from "https://esm.sh/react@17.0.2?target=deno&pin=v74";
+import ReactDOM from "https://esm.sh/react-dom@17.0.2?target=deno&pin=v74";
 
 import { Allocation, AllocationProps } from "./allocation.tsx";
-import { MonteCarloInputs } from "./monteCarlo.ts";
+import { MonteCarloInputs, runMonteCarlo, StatResults } from "./monteCarlo.ts";
+import { Charts } from "./charts.tsx";
 
-class App extends React.Component<any, AllocationProps> {
-  /**
-   *
-   */
-  constructor(props: any) {
+class App extends React.Component<Record<never,never>, AllocationProps> {
+  constructor(props: Record<never,never>) {
     super(props);
     const defaultState = {
       stocksPercent: 50,
@@ -34,18 +32,44 @@ class App extends React.Component<any, AllocationProps> {
     else {
       this.state = defaultState;
     }
-    
+
     // This binding is necessary to make `this` work in the callback
     this.handleAllocationChange = this.handleAllocationChange.bind(this);
+    this.runSimulation = this.runSimulation.bind(this);
   }
 
-  render() { return (
+  render() {
+    let charts;
+    if (this.state.simulationResults)
+      charts = <Charts results={this.state.simulationResults} />
+    else
+      charts = <span>Run simulation to see results.</span>
+
+    
+    return (
     <div>
       <Allocation stocksPercent={this.state.stocksPercent} bondsPercent={this.state.bondsPercent} cashPercent={this.state.cashPercent}
         startingBalance={this.state.startingBalance} drawdownRate={this.state.drawdownRate} onChange={this.handleAllocationChange}
       />
+      <button id="run" onClick={this.runSimulation}>Run Simulation</button>
+      {charts}
     </div>
-  )}
+  )
+  }
+  
+  runSimulation(event: React.MouseEvent<HTMLButtonElement>) {
+    const inputs: MonteCarloInputs = {
+      savings: this.state.startingBalance,
+      withdrawalRate: this.state.drawdownRate / 100,
+      bonds: this.state.bondsPercent / 100,
+      stocks: this.state.stocksPercent / 100,
+      cash: this.state.cashPercent / 100
+    };
+
+    const results = runMonteCarlo(inputs, 4);
+    if (results)
+      this.setState({simulationResults: results})
+  }
 
   setAllocationState(stocks?: number, bonds?: number, cash?: number) {
     this.setState(function (state, _props) {

@@ -10,6 +10,12 @@
 				"kind": "build",
 				"isDefault": true
 			}
+		},
+		{
+			"label": "Bundle with scriptmap",
+			"type": "shell",
+			"command": "deno_bundle monteCarloApp.tsx out/monteCarlo.bundle.js",
+			"problemMatcher": [ "$tsc" ]
 		}
 	]
 }

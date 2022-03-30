@@ -1,14 +1,21 @@
 //import { DataItem, stringify } from "https://deno.land/std@0.126.0/encoding/csv.ts";
 
-import { Chart, ChartItem, registerables } from "https://esm.sh/chart.js@3.7.1?target=deno";
+//import { Chart, ChartItem, registerables } from "https://esm.sh/chart.js@3.7.1?target=deno";
 
-export class MonteCarloInputs {
-    years = 50; // int
-    savings = 1000000; // int
-    withdrawalRate = 0.04; // float (percent)
-    stocks = 0.5; // float (percent)
-    bonds = 0.3; // float (percent)
-    cash = 0.2; // float (percent)
+// export class MonteCarloInputs {
+//     savings = 1000000; // int
+//     withdrawalRate = 0.04; // float (percent)
+//     stocks = 0.5; // float (percent)
+//     bonds = 0.3; // float (percent)
+//     cash = 0.2; // float (percent)
+// }
+
+export interface MonteCarloInputs {
+    savings: number;
+    withdrawalRate: number;
+    stocks: number;
+    bonds: number;
+    cash: number;
 }
 
 type HistoricalDataItem = {
@@ -26,48 +33,44 @@ if ("Deno" in window) {
     historicalData = (await ((await fetch("./data/historicalMarketData.json")).json())) as HistoricalDataItem[];
 }
 const MONTE_CARLO = {
-    inputs: new MonteCarloInputs(),
     historicalData: historicalData,
     TOTAL_TRIALS: 100000,
     MAX_YEARS: 50
 }
 
-export function runMonteCarlo(quantiles: number): StatResults | null {
+export function runMonteCarlo(inputs: MonteCarloInputs, quantiles: number): StatResults | null {
 
     
     let total: number;
     let error: string | undefined;
 
-    if (isNaN(MONTE_CARLO.inputs.years) || (MONTE_CARLO.inputs.years < 5) || (MONTE_CARLO.inputs.years > 50)) {
-        error = "Invalid years";
-    }
-    if (isNaN(MONTE_CARLO.inputs.withdrawalRate) || (MONTE_CARLO.inputs.withdrawalRate > 0.2)) {
+     if (isNaN(inputs.withdrawalRate) || (inputs.withdrawalRate > 0.2)) {
         error = "Invalid withdrawal rate";
     }
-    if (isNaN(MONTE_CARLO.inputs.savings) || (MONTE_CARLO.inputs.savings === 0)) {
+    if (isNaN(inputs.savings) || (inputs.savings === 0)) {
         error = "Invalid savings";
     }
-    if (isNaN(MONTE_CARLO.inputs.stocks) || isNaN(MONTE_CARLO.inputs.bonds) || isNaN(MONTE_CARLO.inputs.cash)) {
+    if (isNaN(inputs.stocks) || isNaN(inputs.bonds) || isNaN(inputs.cash)) {
         error = "Invalid allocation";
     } else {
         // Sum the constituent parts - they should total to 1.
-        total = MONTE_CARLO.inputs.stocks + MONTE_CARLO.inputs.bonds + MONTE_CARLO.inputs.cash;
+        total = inputs.stocks + inputs.bonds + inputs.cash;
         // Normalize to %s in case. 
         if (total > 0) {
-            MONTE_CARLO.inputs.stocks /= total;
-            MONTE_CARLO.inputs.bonds /= total;
-            MONTE_CARLO.inputs.cash /= total;
+            inputs.stocks /= total;
+            inputs.bonds /= total;
+            inputs.cash /= total;
         } else {
             error = "Invalid allocation";
         }
     }
 
     if (error === undefined) {
-        trace("savings: " + MONTE_CARLO.inputs.savings + " years: " + MONTE_CARLO.inputs.years + " withdrawalRate: " + MONTE_CARLO.inputs.withdrawalRate + " stocks: " + MONTE_CARLO.inputs.stocks + " bonds: " + MONTE_CARLO.inputs.bonds + " cash: " + MONTE_CARLO.inputs.cash);
-        const trials = simulateDecumulation();
+        trace("savings: " + inputs.savings + " withdrawalRate: " + inputs.withdrawalRate + " stocks: " + inputs.stocks + " bonds: " + inputs.bonds + " cash: " + inputs.cash);
+        const trials = simulateDecumulation(inputs);
         
         trace("Simulation complete, computing stats.");
-        const simulationStats = computeStats(trials, quantiles);
+        const simulationStats = computeStats(inputs, trials, quantiles);
         //console.log(JSON.stringify(deciles));
 
         return simulationStats;
@@ -117,10 +120,10 @@ type SimResult = {
 type SimResults = { [simYear: number]: { [trialNum: number]: SimResult} };
 
 /** Run the Monte Carlo Simulation and return a 2D array; for each year#, 100k trials with the balance */
-function simulateDecumulation(): SimResults {
+function simulateDecumulation(inputs: MonteCarloInputs): SimResults {
 
     const trials: SimResults = {};
-    const initialWithdrawal = MONTE_CARLO.inputs.savings * MONTE_CARLO.inputs.withdrawalRate;
+    const initialWithdrawal = inputs.savings * inputs.withdrawalRate;
 
     // Initialize the 50 years
     for (let y = 1; y <= MONTE_CARLO.MAX_YEARS; y++) {
@@ -129,7 +132,7 @@ function simulateDecumulation(): SimResults {
 
     // Run 100k trials, 50 years per trial. 
     for (let trial = 0; trial < MONTE_CARLO.TOTAL_TRIALS; trial++) {
-        let balance = MONTE_CARLO.inputs.savings;
+        let balance = inputs.savings;
         let withdrawal = initialWithdrawal;
         for (let year = 1; year <= MONTE_CARLO.MAX_YEARS; year++) {
             // Pick a random year to use its asset performance 
@@ -139,9 +142,9 @@ function simulateDecumulation(): SimResults {
             const startingBalance = balance;
 
             // Weight the growth per asset class relative to portfolio split
-            const arr = MONTE_CARLO.historicalData[randomYear].stocks * MONTE_CARLO.inputs.stocks
-                + MONTE_CARLO.historicalData[randomYear].bonds * MONTE_CARLO.inputs.bonds
-                + MONTE_CARLO.historicalData[randomYear].cash * MONTE_CARLO.inputs.cash;
+            const arr = MONTE_CARLO.historicalData[randomYear].stocks * inputs.stocks
+                + MONTE_CARLO.historicalData[randomYear].bonds * inputs.bonds
+                + MONTE_CARLO.historicalData[randomYear].cash * inputs.cash;
             
             if (balance < withdrawal) {
                 // If we run out of money, keep decrementing balance, but don't compute growth rate of assets. 
@@ -179,7 +182,7 @@ type StatResult = {
 export type StatResults = { [simYear: number]: StatResult };
 
 /** Of the 100k results, sort each year's endingBalance, then, compute statistics.  */
-function computeStats(trials: SimResults, quantiles: number): StatResults {
+function computeStats(inputs: MonteCarloInputs, trials: SimResults, quantiles: number): StatResults {
     const sortedTrials: SimResult[][] = [];
     
     if (quantiles < 2) throw "Quantiles too small.";
@@ -199,17 +202,17 @@ function computeStats(trials: SimResults, quantiles: number): StatResults {
         // Initialize results. 
         // Leave thes values for year 0. 
         results[year] = {
-            min: MONTE_CARLO.inputs.savings,
-            max: MONTE_CARLO.inputs.savings,
-            mean: MONTE_CARLO.inputs.savings,
-            median: MONTE_CARLO.inputs.savings,
+            min: inputs.savings,
+            max: inputs.savings,
+            mean: inputs.savings,
+            median: inputs.savings,
             stddev: 0,
             quantiles: []
         };
         for (let q = 1; q < quantiles; q++) {
             if (year === 0) {
                 // Year 0 is always starting balance 
-                results[0].quantiles.push(MONTE_CARLO.inputs.savings);
+                results[0].quantiles.push(inputs.savings);
             }
             else {
                 // Compute the index into the results array, q% at a time, and push the ending balance
@@ -258,78 +261,5 @@ function stddev(arr: number[]){
     
    // Returning the Standered deviation
    return Math.sqrt(sum / arr.length)
-}
-
-export function drawChart(ctx: ChartItem, simulationStats: StatResults) {
-    Chart.register(...registerables);
-    const _chart = new Chart(ctx, {
-        // The type of chart we want to create
-        type: 'line',
-
-        // The data for our dataset
-        data: {
-            labels: Object.keys(simulationStats),
-            datasets: [{ // 0
-                label: "min",
-                backgroundColor: 'rgba(255, 0, 255, 0.5)',
-                borderColor: 'rgb(255, 99, 132)',
-                data: Object.values(simulationStats).map(s => s.min),
-                //fill: '+1', 
-            },
-            // { // 1
-            //     label: "max",
-            //     // backgroundColor: 'rgb(255, 255, 132)',
-            //     // borderColor: 'rgb(255, 255, 132)',
-            //     data: Object.values(simulationStats).map(s => s.max),
-            // },
-            { 
-                label: "mean",
-                backgroundColor: 'rgb(0, 255, 0)',
-                borderColor: 'rgb(0, 0, 0)',
-                data: Object.values(simulationStats).map(s => s.mean),
-            },
-            // { 
-            //     label: "median",
-            //     backgroundColor: 'rgb(0, 255, 0)',
-            //     borderColor: 'rgb(255, 255, 132)',
-            //     data: Object.values(simulationStats).map(s => s.median),
-            // },
-            { 
-                label: "stddev_low",
-                backgroundColor: 'rgb(255, 255, 132)',
-                borderColor: 'rgb(255, 255, 132)',
-                data: Object.values(simulationStats).map(s => s.mean - s.stddev),
-                //fill: '+1'
-            },
-            { 
-                label: "stddev_high",
-                backgroundColor: 'rgb(255, 255, 132)',
-                borderColor: 'rgb(255, 255, 132)',
-                data: Object.values(simulationStats).map(s => s.mean + s.stddev),
-            },
-            { 
-                label: "q0",
-                backgroundColor: 'rgb(0, 0, 0)',
-                borderColor: 'rgb(255, 0, 0)',
-                data: Object.values(simulationStats).map(s => s.quantiles[0]),
-            },
-            { 
-                label: "q1",
-                backgroundColor: 'rgb(0, 0, 0)',
-                borderColor: 'rgb(255, 0, 0)',
-                data: Object.values(simulationStats).map(s => s.quantiles[1]),
-            },
-            { 
-                label: "q2",
-                backgroundColor: 'rgb(0, 0, 0)',
-                borderColor: 'rgb(255, 0, 0)',
-                data: Object.values(simulationStats).map(s => s.quantiles[2]),
-            },
-        ]
-        },
-
-        // Configuration options go here
-        options: {}
-    });
 }
 

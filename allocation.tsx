@@ -1,4 +1,6 @@
-import React from "https://esm.sh/react@17.0.2";
+import React from "https://esm.sh/react@17.0.2?target=deno&pin=v74";
+import { StatResults } from "./monteCarlo.ts";
+
 // /** @jsxImportSource https://esm.sh/react@17.0.2 */
 
 export interface AllocationProps {
@@ -8,6 +10,7 @@ export interface AllocationProps {
     stocksPercent: number;
     cashPercent: number;
     onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    simulationResults?: StatResults
 }
 
 export class Allocation extends React.Component<AllocationProps> {
