@@ -1,8 +1,8 @@
-// /** @jsxImportSource https://esm.sh/react@17.0.2 */
-// Shouldn't need above on every .tsx file - https://github.com/denoland/deno/issues/13389
+// Shouldn't need below on every .tsx file - https://github.com/denoland/deno/issues/13389
 
-import React from "https://esm.sh/react@17.0.2?target=deno&pin=v74";
-import ReactDOM from "https://esm.sh/react-dom@17.0.2?target=deno&pin=v74";
+import React from "https://esm.sh/react@17.0.2?pin=v74";
+import ReactDOM from "https://esm.sh/react-dom@17.0.2?pin=v74";
+
 
 import { Allocation, AllocationProps } from "./allocation.tsx";
 import { MonteCarloInputs, runMonteCarlo, StatResults } from "./monteCarlo.ts";
@@ -66,9 +66,10 @@ class App extends React.Component<Record<never,never>, AllocationProps> {
       cash: this.state.cashPercent / 100
     };
 
-    const results = runMonteCarlo(inputs, 4);
-    if (results)
-      this.setState({simulationResults: results})
+    runMonteCarlo(inputs, 4).then(results => {
+      if (results)
+        this.setState({ simulationResults: results })
+    });
   }
 
   setAllocationState(stocks?: number, bonds?: number, cash?: number) {

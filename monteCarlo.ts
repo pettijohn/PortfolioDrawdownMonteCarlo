@@ -1,6 +1,5 @@
 //import { DataItem, stringify } from "https://deno.land/std@0.126.0/encoding/csv.ts";
 
-//import { Chart, ChartItem, registerables } from "https://esm.sh/chart.js@3.7.1?target=deno";
 
 // export class MonteCarloInputs {
 //     savings = 1000000; // int
@@ -26,19 +25,20 @@ type HistoricalDataItem = {
     cpi: number;
 }
 
-let historicalData: HistoricalDataItem[];
-if ("Deno" in window) {
-    historicalData = JSON.parse(await Deno.readTextFile("./data/historicalMarketData.json")) as HistoricalDataItem[];
-} else {
-    historicalData = (await ((await fetch("./data/historicalMarketData.json")).json())) as HistoricalDataItem[];
-}
+
 const MONTE_CARLO = {
-    historicalData: historicalData,
-    TOTAL_TRIALS: 100000,
+    historicalData: null as HistoricalDataItem[] | null,
+    TOTAL_TRIALS: 100,
     MAX_YEARS: 50
 }
 
-export function runMonteCarlo(inputs: MonteCarloInputs, quantiles: number): StatResults | null {
+export async function runMonteCarlo(inputs: MonteCarloInputs, quantiles: number): Promise<StatResults | null> {
+
+    if ("Deno" in window) {
+        MONTE_CARLO.historicalData = JSON.parse(await Deno.readTextFile("./data/historicalMarketData.json")) as HistoricalDataItem[];
+    } else {
+        MONTE_CARLO.historicalData = (await ((await fetch("./data/historicalMarketData.json")).json())) as HistoricalDataItem[];
+    }
 
     
     let total: number;
@@ -121,7 +121,8 @@ type SimResults = { [simYear: number]: { [trialNum: number]: SimResult} };
 
 /** Run the Monte Carlo Simulation and return a 2D array; for each year#, 100k trials with the balance */
 function simulateDecumulation(inputs: MonteCarloInputs): SimResults {
-
+    if (MONTE_CARLO.historicalData === null) throw "Historical data not initialized";
+    
     const trials: SimResults = {};
     const initialWithdrawal = inputs.savings * inputs.withdrawalRate;
 
