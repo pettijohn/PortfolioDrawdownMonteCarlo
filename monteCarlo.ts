@@ -15,6 +15,7 @@ export interface MonteCarloInputs {
     stocks: number;
     bonds: number;
     cash: number;
+    simulationRounds: number;
 }
 
 type HistoricalDataItem = {
@@ -28,7 +29,6 @@ type HistoricalDataItem = {
 
 const MONTE_CARLO = {
     historicalData: null as HistoricalDataItem[] | null,
-    TOTAL_TRIALS: 100,
     MAX_YEARS: 50
 }
 
@@ -132,7 +132,7 @@ function simulateDecumulation(inputs: MonteCarloInputs): SimResults {
     }
 
     // Run 100k trials, 50 years per trial. 
-    for (let trial = 0; trial < MONTE_CARLO.TOTAL_TRIALS; trial++) {
+    for (let trial = 0; trial < inputs.simulationRounds; trial++) {
         let balance = inputs.savings;
         let withdrawal = initialWithdrawal;
         for (let year = 1; year <= MONTE_CARLO.MAX_YEARS; year++) {
@@ -217,10 +217,10 @@ function computeStats(inputs: MonteCarloInputs, trials: SimResults, quantiles: n
             }
             else {
                 // Compute the index into the results array, q% at a time, and push the ending balance
-                let index = Math.floor(MONTE_CARLO.TOTAL_TRIALS * (q / quantiles));
+                let index = Math.floor(inputs.simulationRounds * (q / quantiles));
                 //check an overflow, and adjust max index
-                if (index >= MONTE_CARLO.TOTAL_TRIALS) {
-                    index = MONTE_CARLO.TOTAL_TRIALS - 1;
+                if (index >= inputs.simulationRounds) {
+                    index = inputs.simulationRounds - 1;
                 }
                 //trace(`Year ${year} / Trial ${index}`);
                 results[year].quantiles.push(sortedTrials[year-1][index].endingBalance);
@@ -231,8 +231,8 @@ function computeStats(inputs: MonteCarloInputs, trials: SimResults, quantiles: n
 
         // Median is the middlemost value
         results[year].min = sortedTrials[year-1][0].endingBalance;
-        results[year].median = sortedTrials[year-1][Math.floor(MONTE_CARLO.TOTAL_TRIALS * 0.5)].endingBalance;
-        results[year].max = sortedTrials[year - 1][(MONTE_CARLO.TOTAL_TRIALS - 1)].endingBalance;
+        results[year].median = sortedTrials[year-1][Math.floor(inputs.simulationRounds * 0.5)].endingBalance;
+        results[year].max = sortedTrials[year - 1][(inputs.simulationRounds - 1)].endingBalance;
         
         const simYearTotal = sortedTrials[year - 1].reduce((acc, curr) => acc + curr.endingBalance, 0);
         results[year].mean = simYearTotal / sortedTrials[year - 1].length;

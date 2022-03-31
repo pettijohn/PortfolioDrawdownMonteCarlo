@@ -11,6 +11,7 @@ export interface AllocationProps {
     bondsPercent: number;
     stocksPercent: number;
     cashPercent: number;
+    simulationRounds: number;
     onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
     simulationResults?: StatResults
 }
@@ -47,6 +48,9 @@ export class Allocation extends React.Component<AllocationProps> {
                     <li><label htmlFor="cashPercent" className="slider">Portfolio Allocation Cash:</label>
                         <input className="slider" type="range" min="0" max="100" value={this.props.cashPercent} id="cashPercent" onChange={this.props.onChange} />
                         <span>{this.props.cashPercent}%</span></li>
+                    <li><label htmlFor="simulationRounds" className="slider">Simulation Rounds</label>
+                        <input className="slider" type="range" min="1000" max="100000" step="33000" value={this.props.simulationRounds} id="simulationRounds" onChange={this.props.onChange} />
+                        <span>{this.props.simulationRounds}</span></li>
                 </ul> </div>
         )
     }

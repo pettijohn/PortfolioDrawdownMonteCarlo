@@ -17,6 +17,7 @@ class App extends React.Component<Record<never,never>, AllocationProps> {
       cashPercent: 20,
       startingBalance: 1000000,
       drawdownRate: 4,
+      simulationRounds: 1000,
       onChange: undefined
     };
     const STORAGE_KEY = "savedState";
@@ -49,7 +50,7 @@ class App extends React.Component<Record<never,never>, AllocationProps> {
     return (
     <div>
       <Allocation stocksPercent={this.state.stocksPercent} bondsPercent={this.state.bondsPercent} cashPercent={this.state.cashPercent}
-        startingBalance={this.state.startingBalance} drawdownRate={this.state.drawdownRate} onChange={this.handleAllocationChange}
+        startingBalance={this.state.startingBalance} drawdownRate={this.state.drawdownRate} simulationRounds={this.state.simulationRounds} onChange={this.handleAllocationChange}
       />
       <button id="run" onClick={this.runSimulation}>Run Simulation</button>
       {charts}
@@ -63,7 +64,8 @@ class App extends React.Component<Record<never,never>, AllocationProps> {
       withdrawalRate: this.state.drawdownRate / 100,
       bonds: this.state.bondsPercent / 100,
       stocks: this.state.stocksPercent / 100,
-      cash: this.state.cashPercent / 100
+      cash: this.state.cashPercent / 100,
+      simulationRounds: this.state.simulationRounds
     };
 
     runMonteCarlo(inputs, 4).then(results => {
@@ -132,7 +134,9 @@ class App extends React.Component<Record<never,never>, AllocationProps> {
               break;
           case "cashPercent":
               this.setAllocationState(undefined, undefined, value);
-              //this.setState({ [key]: value });
+              break;
+          case "simulationRounds":
+              this.setState({ [key]: value });
               break;
           default:
               break;

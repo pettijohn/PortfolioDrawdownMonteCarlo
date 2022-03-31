@@ -9,6 +9,7 @@ This runs live at https://pettijohn.github.io/PortfolioDrawdownMonteCarlo/
 
 ## Backlog
 * ~~Accept inputs!~~
+* Add basic "computing..." / "done" text 
 * Add visualiztion, normalized to today's dollars
 * Make the colors not horrible
 * Explain what you're looking at
