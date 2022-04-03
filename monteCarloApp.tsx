@@ -5,10 +5,15 @@ import ReactDOM from "https://esm.sh/react-dom@17.0.2?pin=v74";
 
 
 import { Allocation, AllocationProps } from "./allocation.tsx";
-import { MonteCarloInputs, runMonteCarlo, StatResults } from "./monteCarlo.ts";
+import { MonteCarloInputs, MonteCarlo, StatResultsAll, SimulationState } from "./monteCarlo.ts";
 import { Charts } from "./charts.tsx";
 
-class App extends React.Component<Record<never,never>, AllocationProps> {
+
+interface AppState extends AllocationProps {
+  simulationState?: SimulationState
+}
+
+class App extends React.Component<Record<never,never>, AppState> {
   constructor(props: Record<never,never>) {
     super(props);
     const defaultState = {
@@ -18,6 +23,7 @@ class App extends React.Component<Record<never,never>, AllocationProps> {
       startingBalance: 1000000,
       drawdownRate: 4,
       simulationRounds: 1000,
+      simulationYears: 50,
       onChange: undefined
     };
     const STORAGE_KEY = "savedState";
@@ -33,45 +39,60 @@ class App extends React.Component<Record<never,never>, AllocationProps> {
     else {
       this.state = defaultState;
     }
-
+    
     // This binding is necessary to make `this` work in the callback
     this.handleAllocationChange = this.handleAllocationChange.bind(this);
     this.runSimulation = this.runSimulation.bind(this);
+    this.simulationStateChanged = this.simulationStateChanged.bind(this);
+
+    // Initialize the simulation & attach state change callback
+    this.MonteCarloSimulation = new MonteCarlo();
+    this.MonteCarloSimulation.onSimulationStateChange = this.simulationStateChanged;
+  }
+
+  MonteCarloSimulation: MonteCarlo;
+
+  /** Report state changes of the simulation */
+  simulationStateChanged(state: SimulationState) {
+    this.setState({ simulationState: state });
   }
 
   render() {
     let charts;
     if (this.state.simulationResults)
       charts = <Charts results={this.state.simulationResults} />
-    else
-      charts = <span>Run simulation to see results.</span>
 
     
     return (
     <div>
       <Allocation stocksPercent={this.state.stocksPercent} bondsPercent={this.state.bondsPercent} cashPercent={this.state.cashPercent}
-        startingBalance={this.state.startingBalance} drawdownRate={this.state.drawdownRate} simulationRounds={this.state.simulationRounds} onChange={this.handleAllocationChange}
+          startingBalance={this.state.startingBalance} drawdownRate={this.state.drawdownRate} simulationRounds={this.state.simulationRounds}
+          simulationYears={this.state.simulationYears} onChange={this.handleAllocationChange}
       />
-      <button id="run" onClick={this.runSimulation}>Run Simulation</button>
+      <button id="run" onClick={this.runSimulation}>Run Simulation</button>{this.state.simulationState}
       {charts}
     </div>
   )
   }
   
-  runSimulation(event: React.MouseEvent<HTMLButtonElement>) {
+  async runSimulation(event: React.MouseEvent<HTMLButtonElement>) {
     const inputs: MonteCarloInputs = {
       savings: this.state.startingBalance,
       withdrawalRate: this.state.drawdownRate / 100,
       bonds: this.state.bondsPercent / 100,
       stocks: this.state.stocksPercent / 100,
       cash: this.state.cashPercent / 100,
-      simulationRounds: this.state.simulationRounds
+      simulationRounds: this.state.simulationRounds,
+      simulationYears: this.state.simulationYears
     };
 
-    runMonteCarlo(inputs, 4).then(results => {
-      if (results)
-        this.setState({ simulationResults: results })
-    });
+    const results = await this.MonteCarloSimulation.runMonteCarlo(inputs, 4);
+    if (results)
+      this.setState({ simulationResults: results });
+    // this.MonteCarloSimulation.runMonteCarlo(inputs, 4).then(results => {
+    //   if (results)
+    //     this.setState({ simulationResults: results })
+    // });
   }
 
   setAllocationState(stocks?: number, bonds?: number, cash?: number) {
@@ -136,6 +157,9 @@ class App extends React.Component<Record<never,never>, AllocationProps> {
               this.setAllocationState(undefined, undefined, value);
               break;
           case "simulationRounds":
+            this.setState({ [key]: value });
+            break;
+          case "simulationYears":
               this.setState({ [key]: value });
               break;
           default:

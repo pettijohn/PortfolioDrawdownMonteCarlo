@@ -3,12 +3,12 @@ import ReactDOM from "https://esm.sh/react-dom@17.0.2?pin=v74";
 import { Chart as ChartJS, ChartData, CategoryScale, LinearScale, registerables } from "https://esm.sh/chart.js@3.7.1?pin=v74";
 import { Chart, Bar, Line } from "https://esm.sh/react-chartjs-2@4.0.1?pin=v74";
 
-import { StatResults } from "./monteCarlo.ts";
+import { StatResultsAll } from "./monteCarlo.ts";
 
 ChartJS.register(...registerables, CategoryScale, LinearScale );
 
 export interface ChartsProps {
-    results: StatResults
+    results: StatResultsAll
 }
 
 export class Charts extends React.Component<ChartsProps> {
@@ -41,7 +41,7 @@ export class Charts extends React.Component<ChartsProps> {
         )
     }
     
-    chartData(simulationStats: StatResults): ChartData<"line", (number)[], unknown> {
+    chartData(simulationStats: StatResultsAll): ChartData<"line", (number)[], unknown> {
         return {
             labels: Object.keys(simulationStats),
             datasets: [{ // 0

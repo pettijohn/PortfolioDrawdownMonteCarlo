@@ -3,7 +3,7 @@ import ReactDOM from "https://esm.sh/react-dom@17.0.2?pin=v74";
 import { Chart as ChartJS, ChartData, CategoryScale, LinearScale, registerables } from "https://esm.sh/chart.js@3.7.1?pin=v74";
 import { Chart } from "https://esm.sh/react-chartjs-2@4.0.1?pin=v74";
 
-import { StatResults } from "./monteCarlo.ts";
+import { StatResultsAll } from "./monteCarlo.ts";
 
 export interface AllocationProps {
     startingBalance: number;
@@ -12,8 +12,9 @@ export interface AllocationProps {
     stocksPercent: number;
     cashPercent: number;
     simulationRounds: number;
+    simulationYears: number;
     onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
-    simulationResults?: StatResults
+    simulationResults?: StatResultsAll
 }
 
 export class Allocation extends React.Component<AllocationProps> {
@@ -38,19 +39,23 @@ export class Allocation extends React.Component<AllocationProps> {
                     <li><label htmlFor="drawdownRate" className="slider">Drawdown per Year:</label>
                         <input className="slider" type="range" min="0" max="20" step="0.1" value={this.props.drawdownRate} id="drawdownRate" onChange={this.props.onChange} />
                         <span>{this.props.drawdownRate}%
-                            == {this.formatter.format(this.props.startingBalance * (this.props.drawdownRate / 100))} per year</span></li>
+                            == {this.formatter.format(this.props.startingBalance * (this.props.drawdownRate / 100))} per year
+                            == {this.formatter.format(this.props.startingBalance * (this.props.drawdownRate / 100 / 12))} per month</span></li>
                     <li><label htmlFor="stocksPercent" className="slider">Portfolio Allocation Stocks:</label>
                         <input className="slider" type="range" min="0" max="100" value={this.props.stocksPercent} id="stocksPercent" onChange={this.props.onChange} />
-                        <span>{this.props.stocksPercent}%</span></li>
+                        <span>{this.props.stocksPercent}% == {this.formatter.format(this.props.startingBalance * (this.props.stocksPercent / 100))}</span></li>
                     <li><label htmlFor="bondsPercent" className="slider">Portfolio Allocation Bonds:</label>
                         <input className="slider" type="range" min="0" max="100" value={this.props.bondsPercent} id="bondsPercent" onChange={this.props.onChange} />
-                        <span>{this.props.bondsPercent}%</span></li>
+                        <span>{this.props.bondsPercent}% == {this.formatter.format(this.props.startingBalance * (this.props.bondsPercent / 100))}</span></li>
                     <li><label htmlFor="cashPercent" className="slider">Portfolio Allocation Cash:</label>
                         <input className="slider" type="range" min="0" max="100" value={this.props.cashPercent} id="cashPercent" onChange={this.props.onChange} />
-                        <span>{this.props.cashPercent}%</span></li>
+                        <span>{this.props.cashPercent}% == {this.formatter.format(this.props.startingBalance * (this.props.cashPercent / 100))}</span></li>
                     <li><label htmlFor="simulationRounds" className="slider">Simulation Rounds</label>
                         <input className="slider" type="range" min="1000" max="100000" step="33000" value={this.props.simulationRounds} id="simulationRounds" onChange={this.props.onChange} />
                         <span>{this.props.simulationRounds}</span></li>
+                    <li><label htmlFor="simulationYears" className="slider">Simulation Years</label>
+                        <input className="slider" type="range" min="5" max="100" step="5" value={this.props.simulationYears} id="simulationYears" onChange={this.props.onChange} />
+                        <span>{this.props.simulationYears}</span></li>
                 </ul> </div>
         )
     }

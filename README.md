@@ -9,12 +9,15 @@ This runs live at https://pettijohn.github.io/PortfolioDrawdownMonteCarlo/
 
 ## Backlog
 * ~~Accept inputs!~~
-* Add basic "computing..." / "done" text 
-* Add visualiztion, normalized to today's dollars
+* Add basic "computing..." / "done" text !!! Background thread work?
+* ~~Add dollars next to portfolio amounts~~
+* Add visualization, normalized to today's dollars
+* Add visualization, probability you didn't run out of money
 * Make the colors not horrible
 * Explain what you're looking at
 * Allow saving to localStorage
 * Allow sharing with query string parameters 
+* Consider snowpack instead of deno bundle 
 
 ## Lessons Learned
 * To import a Node package, use a [deno-friendly CDN](), which does all the translation on the backend: `import { Chart, ChartItem, registerables } from "https://esm.sh/chart.js@3.7.1";` Don't include `?target=deno` - the CDN returns the appropriate format depending on user agend (Deno for deno, es20xx for browsers).
