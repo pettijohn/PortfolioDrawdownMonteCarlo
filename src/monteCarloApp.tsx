@@ -5,7 +5,8 @@ import ReactDOM from "https://esm.sh/react-dom@17.0.2?pin=v74";
 
 
 import { Allocation, AllocationProps } from "./allocation.tsx";
-import { MonteCarloInputs, MonteCarlo, StatResultsAll, SimulationState } from "./monteCarlo.ts";
+import { MonteCarloInputs, StatResultsAll, SimulationState } from "./monteCarloWorkerTypes.ts";
+
 import { Charts } from "./charts.tsx";
 
 
@@ -39,22 +40,40 @@ class App extends React.Component<Record<never,never>, AppState> {
     else {
       this.state = defaultState;
     }
+
+    // https://github.com/denoland/deno/issues/12276
+    // const workerHref = new URL("web-worker.js", Deno.mainModule).href
+    // new Worker(new URL("./worker.js", import.meta.url).href, { type: "module" });
     
     // This binding is necessary to make `this` work in the callback
     this.handleAllocationChange = this.handleAllocationChange.bind(this);
     this.runSimulation = this.runSimulation.bind(this);
     this.simulationStateChanged = this.simulationStateChanged.bind(this);
 
-    // Initialize the simulation & attach state change callback
-    this.MonteCarloSimulation = new MonteCarlo();
-    this.MonteCarloSimulation.onSimulationStateChange = this.simulationStateChanged;
-  }
+    // Initialize the simulation in a web worker
+    const workerHref = new URL("./out/monteCarloWorker.js", window.location.origin).href;
+    this.MonteCarloSimulation = new Worker(new URL(workerHref, import.meta.url).href, { type: "module" });
+    // this.MonteCarloSimulation.addEventListener('message', this.simulationStateChanged);
+    this.MonteCarloSimulation.onmessage = this.simulationStateChanged;
 
-  MonteCarloSimulation: MonteCarlo;
+    // Initialize the simulation & attach state change callback
+    // this.MonteCarloSimulation = new MonteCarlo();
+    // this.MonteCarloSimulation.onSimulationStateChange = this.simulationStateChanged;
+  }
+  MonteCarloSimulation: Worker;
+
+  // MonteCarloSimulation: MonteCarlo;
 
   /** Report state changes of the simulation */
-  simulationStateChanged(state: SimulationState) {
-    this.setState({ simulationState: state });
+  simulationStateChanged(message: MessageEvent<any>): any {
+    if (typeof message.data == typeof SimulationState) {
+      this.setState({ simulationState: message.data });
+    }
+
+    else //if (state.data instanceof StatResultsAll) 
+    {
+      this.setState({ simulationResults: message.data });
+    }
   }
 
   render() {
@@ -75,7 +94,7 @@ class App extends React.Component<Record<never,never>, AppState> {
   )
   }
   
-  async runSimulation(event: React.MouseEvent<HTMLButtonElement>) {
+  runSimulation(event: React.MouseEvent<HTMLButtonElement>) {
     const inputs: MonteCarloInputs = {
       savings: this.state.startingBalance,
       withdrawalRate: this.state.drawdownRate / 100,
@@ -83,12 +102,14 @@ class App extends React.Component<Record<never,never>, AppState> {
       stocks: this.state.stocksPercent / 100,
       cash: this.state.cashPercent / 100,
       simulationRounds: this.state.simulationRounds,
-      simulationYears: this.state.simulationYears
+      simulationYears: this.state.simulationYears,
+      quantiles: 4
     };
 
-    const results = await this.MonteCarloSimulation.runMonteCarlo(inputs, 4);
-    if (results)
-      this.setState({ simulationResults: results });
+    this.MonteCarloSimulation.postMessage(inputs);
+    // const results = await this.MonteCarloSimulation.runMonteCarlo(inputs, 4);
+    // if (results)
+    //   this.setState({ simulationResults: results });
     // this.MonteCarloSimulation.runMonteCarlo(inputs, 4).then(results => {
     //   if (results)
     //     this.setState({ simulationResults: results })
@@ -168,7 +189,12 @@ class App extends React.Component<Record<never,never>, AppState> {
   }
 }
 
-ReactDOM.render(
-  <App />,
-  document.getElementById('root')
-);
+try {
+  ReactDOM.render(
+    <App />,
+    document.getElementById('root')
+  );
+}
+catch (e) {
+  console.log("Unable to find 'root' in DOM");
+}

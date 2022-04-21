@@ -1,15 +1,6 @@
 //import { DataItem, stringify } from "https://deno.land/std@0.126.0/encoding/csv.ts";
 
-
-export interface MonteCarloInputs {
-    savings: number;
-    withdrawalRate: number;
-    stocks: number;
-    bonds: number;
-    cash: number;
-    simulationRounds: number;
-    simulationYears: number;
-}
+import { MonteCarloInputs, StatResultsAll, SimulationState } from "./monteCarloWorkerTypes.ts";
 
 /** A single year's simulation trial */
 type SimResultSingle = {
@@ -25,19 +16,6 @@ type SimResultSingle = {
 type SimResultsAll = { [simYear: number]: { [trialNum: number]: SimResultSingle } };
 
 
-/** A collection of all of the statistics  */
-export type StatResultsAll = { [simYear: number]: StatResultSingle };
-
-/** Results from a single year, the stats of the 100k simulations */
-type StatResultSingle = {
-    min: number,
-    max: number,
-    mean: number,
-    median: number,
-    stddev: number,
-    quantiles: number[]
-}
-
 type HistoricalDataItem = {
     year: number;
     stocks: number;
@@ -46,12 +24,6 @@ type HistoricalDataItem = {
     cpi: number;
 }
 
-export enum SimulationState {
-    Stopped = "Click Run to start the simulation",
-    Initializing = "Initializing",
-    Running = "Running",
-    Analyzing = "Analyzing results"
-}
 
 export class MonteCarlo {
     constructor() {
@@ -69,7 +41,7 @@ export class MonteCarlo {
             this.onSimulationStateChange(newState);
     }
 
-    async runMonteCarlo(inputs: MonteCarloInputs, quantiles: number): Promise<StatResultsAll | null> {
+    async runMonteCarlo(inputs: MonteCarloInputs): Promise<StatResultsAll | null> {
         this.updateSimulationState(SimulationState.Initializing);
         //Lazy initialize historical data
         if (!this.historicalData) {
@@ -112,7 +84,7 @@ export class MonteCarlo {
             
             this.updateSimulationState(SimulationState.Analyzing);
             this.trace("Simulation complete, computing stats.");
-            const simulationStats = this.computeStats(inputs, trials, quantiles);
+            const simulationStats = this.computeStats(inputs, trials);
             //console.log(JSON.stringify(deciles));
 
             this.updateSimulationState(SimulationState.Stopped);
@@ -207,10 +179,10 @@ export class MonteCarlo {
 
 
     /** Of the 100k results, sort each year's endingBalance, then, compute statistics.  */
-    computeStats(inputs: MonteCarloInputs, trials: SimResultsAll, quantiles: number): StatResultsAll {
+    computeStats(inputs: MonteCarloInputs, trials: SimResultsAll): StatResultsAll {
         const sortedTrials: SimResultSingle[][] = [];
         
-        if (quantiles < 2) throw "Quantiles too small.";
+        if (inputs.quantiles < 2) throw "Quantiles too small.";
 
         for (let year = 1; year <= inputs.simulationYears; year++) {
             const resultsForYear = Object.values(trials[year]);
@@ -234,14 +206,14 @@ export class MonteCarlo {
                 stddev: 0,
                 quantiles: []
             };
-            for (let q = 1; q < quantiles; q++) {
+            for (let q = 1; q < inputs.quantiles; q++) {
                 if (year === 0) {
                     // Year 0 is always starting balance 
                     results[0].quantiles.push(inputs.savings);
                 }
                 else {
                     // Compute the index into the results array, q% at a time, and push the ending balance
-                    let index = Math.floor(inputs.simulationRounds * (q / quantiles));
+                    let index = Math.floor(inputs.simulationRounds * (q / inputs.quantiles));
                     //check an overflow, and adjust max index
                     if (index >= inputs.simulationRounds) {
                         index = inputs.simulationRounds - 1;

@@ -4,5 +4,16 @@
     },
     "deno.suggest.imports.hosts": {
       "https://deno.land": true
+    },
+    "lint": {
+      "files": {
+        "include": ["src/"],
+        "exclude": ["docs/", "data/", "out/"]
+      },
+      "rules": {
+        "tags": ["recommended"],
+        "include": ["ban-untagged-todo"],
+        "exclude": ["no-unused-vars"]
+      }
     }
 }
