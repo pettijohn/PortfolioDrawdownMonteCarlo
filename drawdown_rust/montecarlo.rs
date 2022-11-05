@@ -31,7 +31,7 @@ struct SimulationSingleYear {
     ending_balance: f64,
     //growthRate: number;
     cumulative_inflation: f64,
-    //ending_balance_todays_dollars: f64,
+    ending_balance_todays_dollars: f64,
     year: i32
 }
 
@@ -47,16 +47,20 @@ pub fn simulation(simulation_config: SimulationConfig) -> std::io::Result<()> {
     'trial: for trial in 0..20 {
         // TODO - validate that stocks + bonds + cash == 1.0
         let mut single_run = Vec::<SimulationSingleYear>::new();
-        'year: for year in 0..=(simulation_config.simulation_years) {
+        let mut withdrawal = simulation_config.savings * simulation_config.withdrawal_rate;
+        let initial_withdrawal = withdrawal;
+        
+        'year: for year in 0..(simulation_config.simulation_years) {
             
             // Pick a random year's performance 
             let rand_index = rand::random::<f64>();
-            // TODO - does this floor() the int and produce an index of 0..89? 
+            // TODO - does this floor() the int and produce an index of 0..49? 
             let year_index = (rand_index * *&historical_data.len() as f64).floor() as usize;
-            let year_performance = &historical_data[year_index];
+            let random_historical_year = &historical_data[year_index];
 
             let starting_balance: f64;
             let starting_inflation: f64;
+
 
             if year == 0 {
                 starting_balance = simulation_config.savings;
@@ -68,18 +72,21 @@ pub fn simulation(simulation_config: SimulationConfig) -> std::io::Result<()> {
                 starting_inflation = prev_year.cumulative_inflation;
             }
 
-            let withdrawal = simulation_config.savings * simulation_config.withdrawal_rate;
+            withdrawal *= (1.0 + random_historical_year.cpi);
+            let ending_balance = 
+                ( starting_balance * simulation_config.stocks * (1.0 + random_historical_year.stocks)
+                + starting_balance * simulation_config.bonds * (1.0 + random_historical_year.bonds)
+                + starting_balance * simulation_config.cash * (1.0 + random_historical_year.cash)
+                ) - withdrawal;
 
             let current_year = SimulationSingleYear {
                 year: year,
                 starting_balance: starting_balance,
                 withdrawal: withdrawal,
-                ending_balance: 
-                    ( starting_balance * simulation_config.stocks * (1.0 + year_performance.stocks)
-                    + starting_balance * simulation_config.bonds * (1.0 + year_performance.bonds)
-                    + starting_balance * simulation_config.cash * (1.0 + year_performance.cash)
-                    ) - withdrawal,
-                cumulative_inflation: starting_inflation * (1.0 + year_performance.cpi)
+                ending_balance: ending_balance,
+                //cumulative_inflation: starting_inflation * (1.0 + random_historical_year.cpi),
+                cumulative_inflation: withdrawal / initial_withdrawal,
+                ending_balance_todays_dollars: ending_balance / (withdrawal / initial_withdrawal),
             };
 
             single_run.push(current_year);
@@ -88,8 +95,9 @@ pub fn simulation(simulation_config: SimulationConfig) -> std::io::Result<()> {
 
         let final_year = single_run.last().unwrap();
             // On th final year, print some data 
-        println!("After {} years, the portfolio is worth {}M.", final_year.year,
-            final_year.ending_balance / 1_000_000.0);       
+        println!("After {} years, the portfolio is worth {:.3}M, {:.3}M today's dollars.", final_year.year+1,
+            final_year.ending_balance / 1_000_000.0, 
+            final_year.ending_balance_todays_dollars / 1_000_000.0);
     }
 
     Ok(())
