@@ -20,7 +20,8 @@ fn main() -> std::io::Result<()> {
     file.read_to_string(&mut contents)?;
     
     let d: Vec<HistoricalMarketData> = serde_json::from_str(&contents).unwrap();
-    println!("{:?}", d[0]);
+    println!("{:?}", &d[0]);
+    println!("There are {} years of data", &d.len());
 
 
     Ok(())
