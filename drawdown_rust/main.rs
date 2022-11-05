@@ -47,7 +47,7 @@ fn main() -> std::io::Result<()> {
     println!("There are {} years of data", &historical_data.len());
 
     let simulation_config = SimulationConfig {
-        savings: 3000000.0,
+        savings: 3_000_000.0,
         withdrawal_rate: 0.04,
         stocks: 0.7,
         bonds: 0.2,
@@ -57,53 +57,53 @@ fn main() -> std::io::Result<()> {
         quantiles: 10
     };
 
-    // TODO - validate that stocks + bonds + cash == 1.0
-    let mut single_run = Vec::<SimulationSingleYear>::new();
-    for year in 0..=(simulation_config.simulation_years) {
-        
-        // Pick a random year's performance 
-        let rand_index = rand::random::<f64>();
-        // TODO - does this floor() the int and produce an index of 0..89? 
-        let year_index = (rand_index * *&historical_data.len() as f64).floor() as usize;
-        let year_performance = &historical_data[year_index];
+    'trial: for trial in 0..20 {
+        // TODO - validate that stocks + bonds + cash == 1.0
+        let mut single_run = Vec::<SimulationSingleYear>::new();
+        'year: for year in 0..=(simulation_config.simulation_years) {
+            
+            // Pick a random year's performance 
+            let rand_index = rand::random::<f64>();
+            // TODO - does this floor() the int and produce an index of 0..89? 
+            let year_index = (rand_index * *&historical_data.len() as f64).floor() as usize;
+            let year_performance = &historical_data[year_index];
 
-        let starting_balance: f64;
-        let starting_inflation: f64;
+            let starting_balance: f64;
+            let starting_inflation: f64;
 
-        if year == 0 {
-            starting_balance = simulation_config.savings;
-            starting_inflation = 1.0;
+            if year == 0 {
+                starting_balance = simulation_config.savings;
+                starting_inflation = 1.0;
+            }
+            else {
+                let prev_year = single_run.last().unwrap();
+                starting_balance = prev_year.ending_balance;
+                starting_inflation = prev_year.cumulative_inflation;
+            }
+
+            let withdrawal = simulation_config.savings * simulation_config.withdrawal_rate;
+
+            let current_year = SimulationSingleYear {
+                year: year,
+                starting_balance: starting_balance,
+                withdrawal: withdrawal,
+                ending_balance: 
+                    ( starting_balance * simulation_config.stocks * (1.0 + year_performance.stocks)
+                    + starting_balance * simulation_config.bonds * (1.0 + year_performance.bonds)
+                    + starting_balance * simulation_config.cash * (1.0 + year_performance.cash)
+                    ) - withdrawal,
+                cumulative_inflation: starting_inflation * (1.0 + year_performance.cpi)
+            };
+
+            single_run.push(current_year);
+
         }
-        else {
-            let prev_year = single_run.last().unwrap();
-            starting_balance = prev_year.ending_balance;
-            starting_inflation = prev_year.cumulative_inflation;
-        }
 
-        let withdrawal = simulation_config.savings * simulation_config.withdrawal_rate;
-
-        let current_year = SimulationSingleYear {
-            year: year,
-            starting_balance: starting_balance,
-            withdrawal: withdrawal,
-            ending_balance: 
-                ( starting_balance * simulation_config.stocks * (1.0 + year_performance.stocks)
-                + starting_balance * simulation_config.bonds * (1.0 + year_performance.bonds)
-                + starting_balance * simulation_config.cash * (1.0 + year_performance.cash)
-                ) - withdrawal,
-            cumulative_inflation: starting_inflation * (1.0 + year_performance.cpi)
-        };
-
-        single_run.push(current_year);
-
-        
-
+        let final_year = single_run.last().unwrap();
+            // On th final year, print some data 
+        println!("After {} years, the portfolio is worth {}M.", final_year.year,
+            final_year.ending_balance / 1_000_000.0);       
     }
-
-    let final_year = single_run.last().unwrap();
-        // On th final year, print some data 
-    println!("After {} years, the portfolio is worth {}.", final_year.year,
-        final_year.ending_balance);       
 
     Ok(())
 }
