@@ -175,7 +175,7 @@ export class MonteCarlo {
                 withdrawal *= (1 + historicalData[randomYear].cpi);
                 const startingBalance = balance;
 
-                // Weight the growth per asset class relative to portfolio split
+                // Weight the growth per asset class relative to portfolio split; compute the rate of return for the year with the given portfolio structure
                 const arr = historicalData[randomYear].stocks * inputs.stocks
                     + historicalData[randomYear].bonds * inputs.bonds
                     + historicalData[randomYear].cash * inputs.cash;
