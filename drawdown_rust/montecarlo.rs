@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::prelude::*;
 use std::sync::mpsc;
+use std::thread;
 
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -120,21 +121,60 @@ fn compute_trial(simulation_config: &SimulationConfig, historical_data: &Vec<His
 
 }
 
+fn compute_simulation(simulation_config: &SimulationConfig, historical_data: &Vec<HistoricalMarketData>) {
+    // Compute 100k Trials on 4 threads, append results to Simuluation
+    let (tx, rx) = mpsc::channel::<Trial>();
+
+    let degree_of_parallelism = 8;
+    // This will have a rounding error up op to DoP, but I don't care
+    let trials_per_thread: i32 = simulation_config.simulation_rounds / degree_of_parallelism;
+    let mut simulation = Simulation::new();
+
+    thread::scope(|s| {
+
+        // Create n threads 
+        for _ in 0..degree_of_parallelism {
+            let tx1 = tx.clone();
+
+            s.spawn( move || {
+                // Each thread computes trials_per_thread Trials 
+                for _ in 0..trials_per_thread {
+                    _ = tx1.send(compute_trial(simulation_config, historical_data));
+                }
+                    
+            });
+
+        }
+
+        // Explicitly drop the original reference because it's never used
+        // Clones in each thread go out of scope when done sending data
+        drop(tx);
+
+        // Collect all of the trials in simulation
+        for received in rx {
+            simulation.trials.push(received);
+        }
+
+    });
+
+    // let final_year = trial.years.last().unwrap();
+    //         // On th final year, print some data 
+    //     println!("After {} years, the portfolio is worth {:.3}M, {:.3}M today's dollars.", final_year.year+1,
+    //         final_year.ending_balance / 1_000_000.0, 
+    //         final_year.ending_balance_todays_dollars / 1_000_000.0);
+
+    println!("Completed {} Trials", simulation.trials.len());
+
+}
+
+
 pub fn simulation(simulation_config: SimulationConfig) -> std::io::Result<()> {
     let mut file = File::open("../data/historicalMarketData.json")?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
-    
     let historical_data: Vec<HistoricalMarketData> = serde_json::from_str(&contents).unwrap();
-    // println!("{:?}", &historical_data[0]);
-    // println!("There are {} years of data", &historical_data.len());
-
-    let trial = compute_trial(&simulation_config, &historical_data);
-    let final_year = trial.years.last().unwrap();
-            // On th final year, print some data 
-        println!("After {} years, the portfolio is worth {:.3}M, {:.3}M today's dollars.", final_year.year+1,
-            final_year.ending_balance / 1_000_000.0, 
-            final_year.ending_balance_todays_dollars / 1_000_000.0);
+    
+    compute_simulation(&simulation_config, &historical_data);
 
     Ok(())
 }
