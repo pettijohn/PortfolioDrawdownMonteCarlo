@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::{fs::File, collections::BTreeMap};
 use std::io::prelude::*;
 use std::sync::mpsc;
 use std::thread;
@@ -121,13 +121,13 @@ fn compute_trial(simulation_config: &SimulationConfig, historical_data: &Vec<His
 
 }
 
-fn compute_simulation(simulation_config: &SimulationConfig, historical_data: &Vec<HistoricalMarketData>) {
+fn compute_simulation(simulation_config: &SimulationConfig, historical_data: &Vec<HistoricalMarketData>) -> Simulation {
     // Compute 100k Trials on 4 threads, append results to Simuluation
     let (tx, rx) = mpsc::channel::<Trial>();
 
-    let degree_of_parallelism = 8;
+    let degree_of_parallelism = thread::available_parallelism().unwrap().get() as i32;
     // This will have a rounding error up op to DoP, but I don't care
-    let trials_per_thread: i32 = simulation_config.simulation_rounds / degree_of_parallelism;
+    let trials_per_thread = simulation_config.simulation_rounds / degree_of_parallelism;
     let mut simulation = Simulation::new();
 
     thread::scope(|s| {
@@ -165,8 +165,38 @@ fn compute_simulation(simulation_config: &SimulationConfig, historical_data: &Ve
 
     println!("Completed {} Trials", simulation.trials.len());
 
+    simulation
+
 }
 
+fn compute_stats(simulation_config: &SimulationConfig, simulation: Simulation) {
+    // Sort each of the fifty years and then compute quantiles  
+    let year = 0;
+    // let mut year0_slice = simulation.trials.into_iter()
+    //     .map(|trial| { &trial.years[year] }).collect::<Vec<_>>();
+
+    // for i in 0..simulation.trials.len() {
+    //     let t = &simulation.trials[i];
+    //     year0_slice.push(&t.years[year]);
+    // }
+    let mut year0_slice = Vec::<&SingleYear>::new();
+    for t in &simulation.trials {
+        year0_slice.push(&t.years[year]);
+    }
+
+    year0_slice.sort_unstable_by(|a, b| { a.ending_balance.partial_cmp(&b.ending_balance).unwrap() });
+    //let year0_sorted = year0_slice.sort_by(|a, b| { a.ending_balance.partial_cmp(&b.ending_balance) });
+    
+    
+    // // Insert into a BTreeMap to sort by End savings
+    // let mut year0_sorted = BTreeMap::new();
+    // for y in year0_slice {
+    //     year0_sorted.insert(y.ending_balance, y);
+    // }
+    println!("Year {} has {} elements", year, year0_slice.len());
+    println!("Year {} min/max {} / {}", year, year0_slice[0].ending_balance, year0_slice[year0_slice.len()-1].ending_balance);
+
+}
 
 pub fn simulation(simulation_config: SimulationConfig) -> std::io::Result<()> {
     let mut file = File::open("../data/historicalMarketData.json")?;
@@ -174,7 +204,8 @@ pub fn simulation(simulation_config: SimulationConfig) -> std::io::Result<()> {
     file.read_to_string(&mut contents)?;
     let historical_data: Vec<HistoricalMarketData> = serde_json::from_str(&contents).unwrap();
     
-    compute_simulation(&simulation_config, &historical_data);
+    let simulation_results = compute_simulation(&simulation_config, &historical_data);
+    compute_stats(&simulation_config, simulation_results);
 
     Ok(())
 }
