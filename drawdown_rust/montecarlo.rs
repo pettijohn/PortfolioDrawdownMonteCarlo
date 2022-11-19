@@ -172,17 +172,16 @@ fn compute_simulation(simulation_config: &SimulationConfig, historical_data: &Ve
 fn compute_stats(simulation_config: &SimulationConfig, simulation: Simulation) {
     // Sort each of the fifty years and then compute quantiles  
     let year = 0;
-    // let mut year0_slice = simulation.trials.into_iter()
-    //     .map(|trial| { &trial.years[year] }).collect::<Vec<_>>();
+    
+    // Map approach. I needed to use iter() -- not into_iter() which was giving ownership to the closure
+    let mut year0_slice = simulation.trials.iter()
+        .map(|trial| { &trial.years[year] }).collect::<Vec<&SingleYear>>();
 
-    // for i in 0..simulation.trials.len() {
-    //     let t = &simulation.trials[i];
+    // Loop approach. 
+    // let mut year0_slice = Vec::<&SingleYear>::new();
+    // for t in &simulation.trials {
     //     year0_slice.push(&t.years[year]);
     // }
-    let mut year0_slice = Vec::<&SingleYear>::new();
-    for t in &simulation.trials {
-        year0_slice.push(&t.years[year]);
-    }
 
     year0_slice.sort_unstable_by(|a, b| { a.ending_balance.partial_cmp(&b.ending_balance).unwrap() });
     //let year0_sorted = year0_slice.sort_by(|a, b| { a.ending_balance.partial_cmp(&b.ending_balance) });
