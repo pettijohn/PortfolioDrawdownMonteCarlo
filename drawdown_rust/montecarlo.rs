@@ -1,5 +1,6 @@
 use std::{fs::File, collections::BTreeMap};
 use std::io::prelude::*;
+use std::ops::Range;
 use std::sync::mpsc;
 use std::thread;
 
@@ -169,31 +170,48 @@ fn compute_simulation(simulation_config: &SimulationConfig, historical_data: &Ve
 
 }
 
-fn compute_stats(simulation_config: &SimulationConfig, simulation: Simulation) {
-    // Sort each of the fifty years and then compute quantiles  
-    let year = 0;
-    
-    // Map approach. I needed to use iter() -- not into_iter() which was giving ownership to the closure
-    let mut year0_slice = simulation.trials.iter()
-        .map(|trial| { &trial.years[year] }).collect::<Vec<&SingleYear>>();
+fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) {
+    // Multithreaded comms 
+    let (tx, rx) = mpsc::channel::<Vec<&SingleYear>>();
 
-    // Loop approach. 
-    // let mut year0_slice = Vec::<&SingleYear>::new();
-    // for t in &simulation.trials {
-    //     year0_slice.push(&t.years[year]);
-    // }
+    let degree_of_parallelism = thread::available_parallelism().unwrap().get() as i32;
+    // Divide up the work
+    let years_per_thread = simulation_config.simulation_years / degree_of_parallelism;
+    
 
-    year0_slice.sort_unstable_by(|a, b| { a.ending_balance.partial_cmp(&b.ending_balance).unwrap() });
-    //let year0_sorted = year0_slice.sort_by(|a, b| { a.ending_balance.partial_cmp(&b.ending_balance) });
+    thread::scope(|s| {
+        for thread_num in 0..degree_of_parallelism {
+            let tx1 = tx.clone();
+            s.spawn(move || {
+                let years_range: Range<usize>;
+                // Determine which years this thread is responsible for
+                if thread_num == degree_of_parallelism - 1 {
+                    //special case - the last thread gets its normal allotment plus the remainder 
+                    years_range = (thread_num*years_per_thread) as usize .. simulation_config.simulation_years as usize;
+                }
+                else {
+                    years_range = (thread_num*years_per_thread) as usize .. ((thread_num+1)*years_per_thread) as usize;
+                }
+                println!("Years range: {:?}", years_range);
+                
+                for year in years_range {
+                    // Sort each of the fifty years and then compute quantiles  in a thread
+                    let mut year_slice = simulation.trials.iter()
+                        .map(|trial| { &trial.years[year] }).collect::<Vec<&SingleYear>>();
+
+                    year_slice.sort_unstable_by(|a, b| { a.ending_balance.partial_cmp(&b.ending_balance).unwrap() });
+
+                    let _ = tx1.send(year_slice);
+                }
+
+            });
+        }
+        drop(tx);
+    });
     
-    
-    // // Insert into a BTreeMap to sort by End savings
-    // let mut year0_sorted = BTreeMap::new();
-    // for y in year0_slice {
-    //     year0_sorted.insert(y.ending_balance, y);
-    // }
-    println!("Year {} has {} elements", year, year0_slice.len());
-    println!("Year {} min/max {} / {}", year, year0_slice[0].ending_balance, year0_slice[year0_slice.len()-1].ending_balance);
+    for received in rx {
+        println!("Got data with {} sorted ", received.len());
+    }
 
 }
 
@@ -204,7 +222,7 @@ pub fn simulation(simulation_config: SimulationConfig) -> std::io::Result<()> {
     let historical_data: Vec<HistoricalMarketData> = serde_json::from_str(&contents).unwrap();
     
     let simulation_results = compute_simulation(&simulation_config, &historical_data);
-    compute_stats(&simulation_config, simulation_results);
+    compute_stats(&simulation_config, &simulation_results);
 
     Ok(())
 }
