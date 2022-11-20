@@ -1,7 +1,7 @@
 use std::iter::empty;
 use std::{fs::File, collections::BTreeMap};
 use std::io::prelude::*;
-use std::ops::Range;
+use std::ops::{Range, Rem, Add, Sub, Div};
 use std::sync::mpsc;
 use std::{thread, result};
 
@@ -187,7 +187,31 @@ fn compute_simulation(simulation_config: &SimulationConfig, historical_data: &Ve
 
 }
 
-fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) { //-> Vec<StatResult> {
+fn determine_parallel_ranges(data_range: Range<usize>, degree_of_parallelism: usize) -> Vec::<Range<usize>> {
+    // Distribute the remainder across the first few threads.
+    // E.g. 50 units of work / 8 threads = 6.25 years per thread, or 6R2. 
+    // The first n (n=remainder) threads get an additional unit of work:
+    // 0..7, 7..14, and the rest of the threads get 6 years 
+    // each to process: 14..20, 20..26, ... 44..50. 
+
+    let size_of_work = data_range.end - data_range.start;
+    // If there is less work than threads available
+    let degree_of_parallelism = size_of_work.min(degree_of_parallelism);
+    let vals_per_thread = size_of_work / degree_of_parallelism;
+    let remainder = size_of_work % degree_of_parallelism;
+    println!("Remainder {}", remainder);
+
+    let mut ranges = Vec::<Range<usize>>::with_capacity(degree_of_parallelism);
+    for thread_num in 0..degree_of_parallelism {
+        let range_start = (thread_num*vals_per_thread) + thread_num.min(remainder);
+        let range_end = ((thread_num+1)*vals_per_thread) + (thread_num + 1).min(remainder);
+        ranges.push(range_start .. range_end);
+    }
+
+    ranges
+}
+
+fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) -> Vec<StatResult> {
     // Multithreaded comms 
     let (tx, rx) = mpsc::channel::<StatResult>();
 
@@ -201,8 +225,11 @@ fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) 
         for thread_num in 0..degree_of_parallelism {
             let tx1 = tx.clone();
             s.spawn(move || {
-                // Distribute the remainder across the first (remainder) threads.
-                //let offset = thread_num.min(remainder); // not correct,
+                // Distribute the remainder across the first few threads.
+                // E.g. 50 years / 8 threads = 6.25 years per thread, or 6R2. 
+                // The first n (n=remainder) threads get an additional year:
+                // 0..7, 7..14, and the rest of the threads each get 6 
+                // years to process: 14..20, 20..26, ... 44..50. 
                 let start_year = (thread_num*years_per_thread) + thread_num.min(remainder);
                 let end_year = ((thread_num+1)*years_per_thread) + (thread_num + 1).min(remainder);
                 let years_range = start_year as usize .. end_year as usize;
@@ -245,18 +272,23 @@ fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) 
         println!("{}: mean {} / min {} / max {}", r.year, r.mean, r.min, r.max);
     }
 
-    //results
+    results
 
 }
 
 pub fn simulation(simulation_config: SimulationConfig) -> std::io::Result<()> {
+
+    assert_eq!(determine_parallel_ranges(0..50, 8), vec![0..7, 7..14, 14..20, 20..26, 26..32, 32..38, 38..44, 44..50]);
+    assert_eq!(determine_parallel_ranges(0..3, 4), vec![0..1, 1..2, 2..3]);
+    assert_eq!(determine_parallel_ranges(0..7, 4), vec![0..2, 2..4, 4..6, 6..7]);
+
     let mut file = File::open("../data/historicalMarketData.json")?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
     let historical_data: Vec<HistoricalMarketData> = serde_json::from_str(&contents).unwrap();
     
     let simulation_results = compute_simulation(&simulation_config, &historical_data);
-    compute_stats(&simulation_config, &simulation_results);
+    let _stats = compute_stats(&simulation_config, &simulation_results);
 
     Ok(())
 }
