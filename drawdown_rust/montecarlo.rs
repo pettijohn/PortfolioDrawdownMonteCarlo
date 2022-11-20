@@ -1,8 +1,9 @@
+use std::iter::empty;
 use std::{fs::File, collections::BTreeMap};
 use std::io::prelude::*;
 use std::ops::Range;
 use std::sync::mpsc;
-use std::thread;
+use std::{thread, result};
 
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -33,6 +34,7 @@ pub struct SimulationConfig {
 
 /** Results from a single year, the stats of the 100k simulations */
 struct StatResult {
+    pub year: i32,
     pub min: f64,
     pub max: f64,
     pub mean: f64,
@@ -187,7 +189,7 @@ fn compute_simulation(simulation_config: &SimulationConfig, historical_data: &Ve
 
 fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) { //-> Vec<StatResult> {
     // Multithreaded comms 
-    let (tx, rx) = mpsc::channel::<Vec<&SingleYear>>();
+    let (tx, rx) = mpsc::channel::<StatResult>();
 
     let degree_of_parallelism = thread::available_parallelism().unwrap().get() as i32;
     // Divide up the work
@@ -214,7 +216,17 @@ fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) 
 
                     year_slice.sort_unstable_by(|a, b| { a.ending_balance.partial_cmp(&b.ending_balance).unwrap() });
 
-                    let _ = tx1.send(year_slice);
+                    let stats = StatResult {
+                        year: year as i32,
+                        min: year_slice[0].ending_balance,
+                        max: year_slice[(simulation_config.simulation_rounds-1) as usize].ending_balance,
+                        mean: year_slice.iter().fold(0.0, |acc, x| acc + x.ending_balance) / simulation_config.simulation_rounds as f64,
+                        median: year_slice[(simulation_config.simulation_rounds / 2) as usize].ending_balance,
+                        quantiles: Vec::<f64>::new(),
+                        stddev: 0.0,
+                    };
+
+                    let _ = tx1.send(stats);
                 }
 
             });
@@ -222,9 +234,18 @@ fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) 
         drop(tx);
     });
     
+    let mut results = Vec::<StatResult>::with_capacity(simulation_config.simulation_years as usize);
     for received in rx {
-        println!("Got data with {} sorted ", received.len());
+        results.push(received);
     }
+
+    results.sort_by(|a, b| {a.year.cmp(&b.year)});
+    
+    for r in &results {
+        println!("{}: mean {} / min {} / max {}", r.year, r.mean, r.min, r.max);
+    }
+
+    //results
 
 }
 
