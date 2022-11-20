@@ -28,12 +28,27 @@ pub struct SimulationConfig {
     pub quantiles: i32,
 }
 
+/** A collection of all of the statistics  */
+//export type StatResultsAll = { [simYear: number]: StatResultSingle };
+
+/** Results from a single year, the stats of the 100k simulations */
+struct StatResult {
+    pub min: f64,
+    pub max: f64,
+    pub mean: f64,
+    pub median: f64,
+    pub stddev: f64,
+    pub quantiles: Vec<f64>,
+}
+
+
 /*
 VOCABULARY
 
 * Single Year - result after applying growth/expenses/inflation a single time to a single year
 * Trial - a run of 50 single years, from a starting portfolio balance to 0 or infinity
 * Simulation - 100k trials 
+* StatResult - after computing stats, the results of a single year slice (all 100k records from year-n processed down into consumable stats)
 
 */
 
@@ -170,29 +185,27 @@ fn compute_simulation(simulation_config: &SimulationConfig, historical_data: &Ve
 
 }
 
-fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) {
+fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) { //-> Vec<StatResult> {
     // Multithreaded comms 
     let (tx, rx) = mpsc::channel::<Vec<&SingleYear>>();
 
     let degree_of_parallelism = thread::available_parallelism().unwrap().get() as i32;
     // Divide up the work
     let years_per_thread = simulation_config.simulation_years / degree_of_parallelism;
-    
+    let remainder = simulation_config.simulation_years % degree_of_parallelism;
+    println!("Remainder {}", remainder);
 
     thread::scope(|s| {
         for thread_num in 0..degree_of_parallelism {
             let tx1 = tx.clone();
             s.spawn(move || {
-                let years_range: Range<usize>;
-                // Determine which years this thread is responsible for
-                if thread_num == degree_of_parallelism - 1 {
-                    //special case - the last thread gets its normal allotment plus the remainder 
-                    years_range = (thread_num*years_per_thread) as usize .. simulation_config.simulation_years as usize;
-                }
-                else {
-                    years_range = (thread_num*years_per_thread) as usize .. ((thread_num+1)*years_per_thread) as usize;
-                }
-                println!("Years range: {:?}", years_range);
+                // Distribute the remainder across the first (remainder) threads.
+                //let offset = thread_num.min(remainder); // not correct,
+                let start_year = (thread_num*years_per_thread) + thread_num.min(remainder);
+                let end_year = ((thread_num+1)*years_per_thread) + (thread_num + 1).min(remainder);
+                let years_range = start_year as usize .. end_year as usize;
+
+                println!("Threadnum: {}. Years range: {:?}", thread_num, years_range);
                 
                 for year in years_range {
                     // Sort each of the fifty years and then compute quantiles  in a thread
