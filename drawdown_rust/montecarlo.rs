@@ -140,23 +140,24 @@ fn compute_trial(simulation_config: &SimulationConfig, historical_data: &Vec<His
 }
 
 fn compute_simulation(simulation_config: &SimulationConfig, historical_data: &Vec<HistoricalMarketData>) -> Simulation {
-    // Compute 100k Trials on 4 threads, append results to Simuluation
+    // Compute 100k Trials on 8 threads, append results to Simuluation
     let (tx, rx) = mpsc::channel::<Trial>();
 
-    let degree_of_parallelism = thread::available_parallelism().unwrap().get() as i32;
-    // This will have a rounding error up op to DoP, but I don't care
-    let trials_per_thread = simulation_config.simulation_rounds / degree_of_parallelism;
+    let parallel_ranges = determine_parallel_ranges(0..simulation_config.simulation_rounds as usize, 
+        thread::available_parallelism().unwrap().get());
+
     let mut simulation = Simulation::new();
 
     thread::scope(|s| {
 
         // Create n threads 
-        for _ in 0..degree_of_parallelism {
+        for range_for_thread in parallel_ranges {
+            //println!("Computing range {:?}", range_for_thread);
             let tx1 = tx.clone();
 
             s.spawn( move || {
                 // Each thread computes trials_per_thread Trials 
-                for _ in 0..trials_per_thread {
+                for _ in range_for_thread {
                     _ = tx1.send(compute_trial(simulation_config, historical_data));
                 }
                     
@@ -199,8 +200,7 @@ fn determine_parallel_ranges(data_range: Range<usize>, degree_of_parallelism: us
     let degree_of_parallelism = size_of_work.min(degree_of_parallelism);
     let vals_per_thread = size_of_work / degree_of_parallelism;
     let remainder = size_of_work % degree_of_parallelism;
-    println!("Remainder {}", remainder);
-
+    
     let mut ranges = Vec::<Range<usize>>::with_capacity(degree_of_parallelism);
     for thread_num in 0..degree_of_parallelism {
         let range_start = (thread_num*vals_per_thread) + thread_num.min(remainder);
@@ -208,34 +208,21 @@ fn determine_parallel_ranges(data_range: Range<usize>, degree_of_parallelism: us
         ranges.push(range_start .. range_end);
     }
 
+    //println!("{:?}", ranges);
     ranges
 }
 
 fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) -> Vec<StatResult> {
-    // Multithreaded comms 
     let (tx, rx) = mpsc::channel::<StatResult>();
 
-    let degree_of_parallelism = thread::available_parallelism().unwrap().get() as i32;
-    // Divide up the work
-    let years_per_thread = simulation_config.simulation_years / degree_of_parallelism;
-    let remainder = simulation_config.simulation_years % degree_of_parallelism;
-    println!("Remainder {}", remainder);
+    // Distribute 50 years into 8 units of work...6.25 years each, or 7, 7, 6, 6, 6, 6, 6, 6 years each thread. 
+    let parallel_ranges = determine_parallel_ranges(0..simulation_config.simulation_years as usize, 
+        thread::available_parallelism().unwrap().get());
 
     thread::scope(|s| {
-        for thread_num in 0..degree_of_parallelism {
+        for years_range in parallel_ranges {
             let tx1 = tx.clone();
             s.spawn(move || {
-                // Distribute the remainder across the first few threads.
-                // E.g. 50 years / 8 threads = 6.25 years per thread, or 6R2. 
-                // The first n (n=remainder) threads get an additional year:
-                // 0..7, 7..14, and the rest of the threads each get 6 
-                // years to process: 14..20, 20..26, ... 44..50. 
-                let start_year = (thread_num*years_per_thread) + thread_num.min(remainder);
-                let end_year = ((thread_num+1)*years_per_thread) + (thread_num + 1).min(remainder);
-                let years_range = start_year as usize .. end_year as usize;
-
-                println!("Threadnum: {}. Years range: {:?}", thread_num, years_range);
-                
                 for year in years_range {
                     // Sort each of the fifty years and then compute quantiles  in a thread
                     let mut year_slice = simulation.trials.iter()
