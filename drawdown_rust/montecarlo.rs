@@ -6,6 +6,7 @@ use std::sync::mpsc;
 use std::{thread, result};
 
 use rand::prelude::*;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -141,40 +142,16 @@ fn compute_trial(simulation_config: &SimulationConfig, historical_data: &Vec<His
 
 fn compute_simulation(simulation_config: &SimulationConfig, historical_data: &Vec<HistoricalMarketData>) -> Simulation {
     // Compute 100k Trials on 8 threads, append results to Simuluation
-    let (tx, rx) = mpsc::channel::<Trial>();
-
-    let parallel_ranges = determine_parallel_ranges(0..simulation_config.simulation_rounds as usize, 
-        thread::available_parallelism().unwrap().get());
-
     let mut simulation = Simulation::new();
 
-    thread::scope(|s| {
-
-        // Create n threads 
-        for range_for_thread in parallel_ranges {
-            //println!("Computing range {:?}", range_for_thread);
-            let tx1 = tx.clone();
-
-            s.spawn( move || {
-                // Each thread computes trials_per_thread Trials 
-                for _ in range_for_thread {
-                    _ = tx1.send(compute_trial(simulation_config, historical_data));
-                }
-                    
-            });
-
-        }
-
-        // Explicitly drop the original reference because it's never used
-        // Clones in each thread go out of scope when done sending data
-        drop(tx);
-
-        // Collect all of the trials in simulation
-        for received in rx {
-            simulation.trials.push(received);
-        }
-
-    });
+    let trial_range = 0..simulation_config.simulation_rounds;
+    let mut trial_results: Vec::<Trial> = trial_range.into_par_iter()
+        .map(|_| {
+            compute_trial(simulation_config, historical_data)
+        })
+        .collect();
+    
+    simulation.trials.append(&mut trial_results);
 
     // let final_year = trial.years.last().unwrap();
     //         // On th final year, print some data 
@@ -188,88 +165,39 @@ fn compute_simulation(simulation_config: &SimulationConfig, historical_data: &Ve
 
 }
 
-fn determine_parallel_ranges(data_range: Range<usize>, degree_of_parallelism: usize) -> Vec::<Range<usize>> {
-    // Distribute the remainder across the first few threads.
-    // E.g. 50 units of work / 8 threads = 6.25 years per thread, or 6R2. 
-    // The first n (n=remainder) threads get an additional unit of work:
-    // 0..7, 7..14, and the rest of the threads get 6 years 
-    // each to process: 14..20, 20..26, ... 44..50. 
-
-    let size_of_work = data_range.end - data_range.start;
-    // If there is less work than threads available
-    let degree_of_parallelism = size_of_work.min(degree_of_parallelism);
-    let vals_per_thread = size_of_work / degree_of_parallelism;
-    let remainder = size_of_work % degree_of_parallelism;
-    
-    let mut ranges = Vec::<Range<usize>>::with_capacity(degree_of_parallelism);
-    for thread_num in 0..degree_of_parallelism {
-        let range_start = data_range.start + (thread_num*vals_per_thread) + thread_num.min(remainder);
-        let range_end = data_range.start + ((thread_num+1)*vals_per_thread) + (thread_num + 1).min(remainder);
-        ranges.push(range_start .. range_end);
-    }
-
-    //println!("{:?}", ranges);
-    ranges
-}
-
 fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) -> Vec<StatResult> {
-    let (tx, rx) = mpsc::channel::<StatResult>();
 
     // Distribute 50 years into 8 units of work...6.25 years each, or 7, 7, 6, 6, 6, 6, 6, 6 years each thread. 
-    let parallel_ranges = determine_parallel_ranges(0..simulation_config.simulation_years as usize, 
-        thread::available_parallelism().unwrap().get());
+    //let mut results = Vec::<StatResult>::with_capacity(simulation_config.simulation_years as usize);
+    let years_range = 0..simulation_config.simulation_years as usize;
+    let results = years_range.into_par_iter()
+        .map(|year| {
+            // Sort each of the fifty years and then compute quantiles  in a thread
+            let mut year_slice = simulation.trials.iter()
+            .map(|trial| { &trial.years[year] }).collect::<Vec<&SingleYear>>();
 
-    thread::scope(|s| {
-        for years_range in parallel_ranges {
-            let tx1 = tx.clone();
-            s.spawn(move || {
-                for year in years_range {
-                    // Sort each of the fifty years and then compute quantiles  in a thread
-                    let mut year_slice = simulation.trials.iter()
-                        .map(|trial| { &trial.years[year] }).collect::<Vec<&SingleYear>>();
+            year_slice.sort_unstable_by(|a, b| { a.ending_balance.partial_cmp(&b.ending_balance).unwrap() });
 
-                    year_slice.sort_unstable_by(|a, b| { a.ending_balance.partial_cmp(&b.ending_balance).unwrap() });
+            let stats = StatResult {
+                year: year as i32,
+                min: year_slice[0].ending_balance,
+                max: year_slice[(simulation_config.simulation_rounds-1) as usize].ending_balance,
+                mean: year_slice.iter().fold(0.0, |acc, x| acc + x.ending_balance) / simulation_config.simulation_rounds as f64,
+                median: year_slice[(simulation_config.simulation_rounds / 2) as usize].ending_balance,
+                quantiles: Vec::<f64>::new(),
+                stddev: 0.0,
+            };
 
-                    let stats = StatResult {
-                        year: year as i32,
-                        min: year_slice[0].ending_balance,
-                        max: year_slice[(simulation_config.simulation_rounds-1) as usize].ending_balance,
-                        mean: year_slice.iter().fold(0.0, |acc, x| acc + x.ending_balance) / simulation_config.simulation_rounds as f64,
-                        median: year_slice[(simulation_config.simulation_rounds / 2) as usize].ending_balance,
-                        quantiles: Vec::<f64>::new(),
-                        stddev: 0.0,
-                    };
+            stats
+        })
+        .collect();
 
-                    let _ = tx1.send(stats);
-                }
-
-            });
-        }
-        drop(tx);
-    });
-    
-    let mut results = Vec::<StatResult>::with_capacity(simulation_config.simulation_years as usize);
-    for received in rx {
-        results.push(received);
-    }
-
-    results.sort_by(|a, b| {a.year.cmp(&b.year)});
-    
-    for r in &results {
-        println!("{}: mean {} / min {} / max {}", r.year, r.mean, r.min, r.max);
-    }
 
     results
 
 }
 
 pub fn simulation(simulation_config: SimulationConfig) -> std::io::Result<()> {
-
-    assert_eq!(determine_parallel_ranges(0..50, 8), vec![0..7, 7..14, 14..20, 20..26, 26..32, 32..38, 38..44, 44..50]);
-    assert_eq!(determine_parallel_ranges(0..3, 4), vec![0..1, 1..2, 2..3]);
-    assert_eq!(determine_parallel_ranges(0..7, 4), vec![0..2, 2..4, 4..6, 6..7]);
-    assert_eq!(determine_parallel_ranges(10..17, 4), vec![10..12, 12..14, 14..16, 16..17]);
-    
 
 
     let mut file = File::open("../data/historicalMarketData.json")?;
