@@ -34,7 +34,7 @@ pub struct SimulationConfig {
 //export type StatResultsAll = { [simYear: number]: StatResultSingle };
 
 /** Results from a single year, the stats of the 100k simulations */
-struct StatResult {
+pub struct StatResult {
     pub year: i32,
     pub min: f64,
     pub max: f64,
@@ -167,8 +167,6 @@ fn compute_simulation(simulation_config: &SimulationConfig, historical_data: &Ve
 
 fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) -> Vec<StatResult> {
 
-    // Distribute 50 years into 8 units of work...6.25 years each, or 7, 7, 6, 6, 6, 6, 6, 6 years each thread. 
-    //let mut results = Vec::<StatResult>::with_capacity(simulation_config.simulation_years as usize);
     let years_range = 0..simulation_config.simulation_years as usize;
     let results = years_range.into_par_iter()
         .map(|year| {
@@ -176,7 +174,7 @@ fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) 
             let mut year_slice = simulation.trials.iter()
             .map(|trial| { &trial.years[year] }).collect::<Vec<&SingleYear>>();
 
-            year_slice.sort_unstable_by(|a, b| { a.ending_balance.partial_cmp(&b.ending_balance).unwrap() });
+            year_slice.par_sort_unstable_by(|a, b| { a.ending_balance.partial_cmp(&b.ending_balance).unwrap() });
 
             let stats = StatResult {
                 year: year as i32,
@@ -197,16 +195,14 @@ fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) 
 
 }
 
-pub fn simulation(simulation_config: SimulationConfig) -> std::io::Result<()> {
+pub fn simulation(simulation_config: SimulationConfig) -> Vec<StatResult> {
 
 
-    let mut file = File::open("../data/historicalMarketData.json")?;
+    let mut file = File::open("../data/historicalMarketData.json").expect("Unable to OPEN historicalMarketData.json!");
     let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
+    file.read_to_string(&mut contents).expect("Unable to READ historicalMarketData.json!");
     let historical_data: Vec<HistoricalMarketData> = serde_json::from_str(&contents).unwrap();
     
     let simulation_results = compute_simulation(&simulation_config, &historical_data);
-    let _stats = compute_stats(&simulation_config, &simulation_results);
-
-    Ok(())
+    compute_stats(&simulation_config, &simulation_results)
 }
