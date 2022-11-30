@@ -34,7 +34,7 @@ pub struct SimulationConfig {
 //export type StatResultsAll = { [simYear: number]: StatResultSingle };
 
 /** Results from a single year, the stats of the 100k simulations */
-pub struct StatResult {
+pub struct StatsSingleYear {
     pub year: i32,
     pub min: f64,
     pub max: f64,
@@ -44,6 +44,16 @@ pub struct StatResult {
     pub quantiles: Vec<f64>,
 }
 
+pub struct StatResults {
+    pub years: Vec<StatsSingleYear>,
+}
+impl StatResults {
+    fn new() -> Self {
+        Self {
+            years: Vec::<StatsSingleYear>::new(),
+        }
+    }
+}
 
 /*
 VOCABULARY
@@ -51,7 +61,8 @@ VOCABULARY
 * Single Year - result after applying growth/expenses/inflation a single time to a single year
 * Trial - a run of 50 single years, from a starting portfolio balance to 0 or infinity
 * Simulation - 100k trials 
-* StatResult - after computing stats, the results of a single year slice (all 100k records from year-n processed down into consumable stats)
+* StatSingleYear - after computing stats, the results of a single year slice (all 100k records from year-n processed down into consumable stats)
+* StatResults - All 50 years of StatSingleYears
 
 */
 
@@ -165,7 +176,7 @@ fn compute_simulation(simulation_config: &SimulationConfig, historical_data: &Ve
 
 }
 
-fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) -> Vec<StatResult> {
+fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) -> Vec<StatsSingleYear> {
 
     let years_range = 0..simulation_config.simulation_years as usize;
     let results = years_range.into_par_iter()
@@ -176,7 +187,7 @@ fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) 
 
             year_slice.par_sort_unstable_by(|a, b| { a.ending_balance.partial_cmp(&b.ending_balance).unwrap() });
 
-            let stats = StatResult {
+            let stats = StatsSingleYear {
                 year: year as i32,
                 min: year_slice[0].ending_balance,
                 max: year_slice[(simulation_config.simulation_rounds-1) as usize].ending_balance,
@@ -195,7 +206,7 @@ fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) 
 
 }
 
-pub fn simulation(simulation_config: SimulationConfig) -> Vec<StatResult> {
+pub fn simulation(simulation_config: SimulationConfig) -> StatResults {
 
 
     let mut file = File::open("../data/historicalMarketData.json").expect("Unable to OPEN historicalMarketData.json!");
@@ -204,5 +215,6 @@ pub fn simulation(simulation_config: SimulationConfig) -> Vec<StatResult> {
     let historical_data: Vec<HistoricalMarketData> = serde_json::from_str(&contents).unwrap();
     
     let simulation_results = compute_simulation(&simulation_config, &historical_data);
-    compute_stats(&simulation_config, &simulation_results)
+    let years = compute_stats(&simulation_config, &simulation_results);
+    StatResults { years: years }
 }

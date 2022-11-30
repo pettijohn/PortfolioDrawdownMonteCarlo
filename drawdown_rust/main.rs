@@ -12,8 +12,8 @@ fn main() -> std::io::Result<()> {
         quantiles: 10
     };
 
-    let statResults = montecarlo::simulation(simulation_config);
-    for result in statResults {
+    let stat_results = montecarlo::simulation(simulation_config);
+    for result in stat_results.years {
         println!("{}: Min {} / Max {} / Avg {}M", result.year, result.min, result.max, (result.median/1000000.0).floor());
     }
 
