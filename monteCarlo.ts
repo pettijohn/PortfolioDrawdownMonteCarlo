@@ -9,6 +9,7 @@ export interface MonteCarloInputs {
     cash: number;
     simulationRounds: number;
     simulationYears: number;
+    quantiles: number;
 }
 
 /** A single year's simulation trial */
@@ -69,7 +70,7 @@ export class MonteCarlo {
             this.onSimulationStateChange(newState);
     }
 
-    async runMonteCarlo(inputs: MonteCarloInputs, quantiles: number): Promise<StatResultsAll | null> {
+    async runMonteCarlo(inputs: MonteCarloInputs): Promise<StatResultsAll | null> {
         this.updateSimulationState(SimulationState.Initializing);
         //Lazy initialize historical data
         if (!this.historicalData) {
@@ -112,7 +113,7 @@ export class MonteCarlo {
             
             this.updateSimulationState(SimulationState.Analyzing);
             this.trace("Simulation complete, computing stats.");
-            const simulationStats = this.computeStats(inputs, trials, quantiles);
+            const simulationStats = this.computeStats(inputs, trials, inputs.quantiles);
             //console.log(JSON.stringify(deciles));
 
             this.updateSimulationState(SimulationState.Stopped);
