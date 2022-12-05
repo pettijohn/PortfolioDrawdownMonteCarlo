@@ -1,6 +1,6 @@
-import { MonteCarloInputs, MonteCarlo } from "./monteCarlo.ts";
+import { SimulationConfig, MonteCarlo } from "./monteCarlo.ts";
 
-const inputs: MonteCarloInputs = {
+const inputs: SimulationConfig = {
     savings: 3000000,
     withdrawalRate: 0.04,
     bonds: 0.2,
@@ -12,7 +12,7 @@ const inputs: MonteCarloInputs = {
   };
 
 const simulation = new MonteCarlo();
-const results = await simulation.runMonteCarlo(inputs);
+const results = await simulation.computeSimulation(inputs);
 //console.log(JSON.stringify(results));
 for (let year = 0; year < inputs.simulationYears; year++) {
     const r = results![year];
