@@ -12,9 +12,12 @@ fn main() -> std::io::Result<()> {
         quantiles: 10
     };
 
+    println!("savings: {} withdrawalRate: {} stocks: {}, bonds: {} cash: {}", 
+        simulation_config.savings, simulation_config.withdrawal_rate, simulation_config.stocks, simulation_config.bonds, simulation_config.cash);
     let stat_results = montecarlo::simulation(simulation_config);
     for result in stat_results.years {
-        println!("{}: Min {} / Max {} / Avg {}M", result.year, result.min, result.max, (result.median/1000000.0).floor());
+        println!("{}: Min {} / Max {} / Avg {}M, / Median {}M", result.year, (result.min/1000000.0).floor(), 
+            (result.max/1000000.0).floor(), (result.mean/1000000.0).floor(), (result.median/1000000.0).floor());
     }
 
     Ok(())

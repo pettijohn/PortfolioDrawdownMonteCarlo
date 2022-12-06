@@ -1,6 +1,6 @@
 import { SimulationConfig, MonteCarlo } from "./monteCarlo.ts";
 
-const inputs: SimulationConfig = {
+const simulationConfig: SimulationConfig = {
     savings: 3000000,
     withdrawalRate: 0.04,
     bonds: 0.2,
@@ -12,9 +12,11 @@ const inputs: SimulationConfig = {
   };
 
 const simulation = new MonteCarlo();
-const results = await simulation.computeSimulation(inputs);
+console.log("savings: " + simulationConfig.savings + " withdrawalRate: " + simulationConfig.withdrawalRate
+    + " stocks: " + simulationConfig.stocks + " bonds: " + simulationConfig.bonds + " cash: " + simulationConfig.cash);
+const results = await simulation.computeSimulation(simulationConfig);
 //console.log(JSON.stringify(results));
-for (let year = 0; year < inputs.simulationYears; year++) {
+for (let year = 0; year < simulationConfig.simulationYears; year++) {
     const r = results![year];
-    console.log(`${year}: Min ${r.min} / Max ${r.max} / Avg ${Math.floor(r.mean / 1000000)}M`);
+    console.log(`${year}: Min ${Math.floor(r.min / 1000000)}M / Max ${Math.floor(r.max / 1000000)}M / Avg ${Math.floor(r.mean / 1000000)}M / Median ${Math.floor(r.median / 1000000)}M`);
 }

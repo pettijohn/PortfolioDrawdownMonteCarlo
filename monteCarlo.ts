@@ -82,7 +82,7 @@ export class MonteCarlo {
             this.onSimulationStateChange(newState);
     }
 
-    async computeSimulation(inputs: SimulationConfig): Promise<StatResults | null> {
+    async computeSimulation(simulationConfig: SimulationConfig): Promise<StatResults | null> {
         this.updateSimulationState(SimulationState.Initializing);
         //Lazy initialize historical data
         if (!this.historicalData) {
@@ -97,22 +97,22 @@ export class MonteCarlo {
         let total: number;
         let error: string | undefined;
 
-        if (isNaN(inputs.withdrawalRate) || (inputs.withdrawalRate > 0.2)) {
+        if (isNaN(simulationConfig.withdrawalRate) || (simulationConfig.withdrawalRate > 0.2)) {
             error = "Invalid withdrawal rate";
         }
-        if (isNaN(inputs.savings) || (inputs.savings === 0)) {
+        if (isNaN(simulationConfig.savings) || (simulationConfig.savings === 0)) {
             error = "Invalid savings";
         }
-        if (isNaN(inputs.stocks) || isNaN(inputs.bonds) || isNaN(inputs.cash)) {
+        if (isNaN(simulationConfig.stocks) || isNaN(simulationConfig.bonds) || isNaN(simulationConfig.cash)) {
             error = "Invalid allocation";
         } else {
             // Sum the constituent parts - they should total to 1.
-            total = inputs.stocks + inputs.bonds + inputs.cash;
+            total = simulationConfig.stocks + simulationConfig.bonds + simulationConfig.cash;
             // Normalize to %s in case. 
             if (total > 0) {
-                inputs.stocks /= total;
-                inputs.bonds /= total;
-                inputs.cash /= total;
+                simulationConfig.stocks /= total;
+                simulationConfig.bonds /= total;
+                simulationConfig.cash /= total;
             } else {
                 error = "Invalid allocation";
             }
@@ -120,12 +120,11 @@ export class MonteCarlo {
 
         if (error === undefined) {
             this.updateSimulationState(SimulationState.Running);
-            this.trace("savings: " + inputs.savings + " withdrawalRate: " + inputs.withdrawalRate + " stocks: " + inputs.stocks + " bonds: " + inputs.bonds + " cash: " + inputs.cash);
-            const trials = this.simulateDrawdown(inputs, this.historicalData);
+            const trials = this.simulateDrawdown(simulationConfig, this.historicalData);
             
             this.updateSimulationState(SimulationState.Analyzing);
             this.trace("Simulation complete, computing stats.");
-            const simulationStats = this.computeStats(inputs, trials, inputs.quantiles);
+            const simulationStats = this.computeStats(simulationConfig, trials);
             //console.log(JSON.stringify(deciles));
 
             this.updateSimulationState(SimulationState.Stopped);
@@ -167,48 +166,56 @@ export class MonteCarlo {
 
 
     /** Run the Monte Carlo Simulation and return a 2D array; for each year#, 100k trials with the balance */
-    simulateDrawdown(inputs: SimulationConfig, historicalData: HistoricalMarketData[]): Simulation {
+    simulateDrawdown(simulationConfig: SimulationConfig, historicalData: HistoricalMarketData[]): Simulation {
         
         const trials: Simulation = {};
-        const initialWithdrawal = inputs.savings * inputs.withdrawalRate;
+        const initialWithdrawal = simulationConfig.savings * simulationConfig.withdrawalRate;
 
         // Initialize the 50 years
-        for (let y = 1; y <= inputs.simulationYears; y++) {
+        for (let y = 0; y < simulationConfig.simulationYears; y++) {
             trials[y] = {};
         }
 
         // Run 100k trials, 50 years per trial. 
-        for (let trial = 0; trial < inputs.simulationRounds; trial++) {
-            let balance = inputs.savings;
+        for (let trial = 0; trial < simulationConfig.simulationRounds; trial++) {
             let withdrawal = initialWithdrawal;
-            for (let year = 1; year <= inputs.simulationYears; year++) {
+            for (let year = 0; year < simulationConfig.simulationYears; year++) {
                 // Pick a random year to use its asset performance 
-                const randomYear = Math.floor(Math.random() * historicalData.length);
+                const yearIndex = Math.floor(Math.random() * historicalData.length);
+                const randomHistoricalYear = historicalData[yearIndex];
                 // Adjust withdrawal amount this year for inflation 
-                withdrawal *= (1 + historicalData[randomYear].cpi);
-                const startingBalance = balance;
+                withdrawal *= (1 + randomHistoricalYear.cpi);
+                let startingBalance = 0;
+                if (year === 0) {
+                    startingBalance = simulationConfig.savings;
+                }
+                else {
+                    const prevYear = trials[year-1][trial];
+                    startingBalance = prevYear.endingBalance;
+                }
 
                 // Weight the growth per asset class relative to portfolio split; compute the rate of return for the year with the given portfolio structure
-                const arr = historicalData[randomYear].stocks * inputs.stocks
-                    + historicalData[randomYear].bonds * inputs.bonds
-                    + historicalData[randomYear].cash * inputs.cash;
+                const arr = randomHistoricalYear.stocks * simulationConfig.stocks
+                    + randomHistoricalYear.bonds * simulationConfig.bonds
+                    + randomHistoricalYear.cash * simulationConfig.cash;
                 
-                if (balance < withdrawal) {
+                let endingBalance = startingBalance;
+                if (startingBalance < withdrawal) {
                     // If we run out of money, keep decrementing balance, but don't compute growth rate of assets. 
                     // TODO should we just zero out?
-                    balance -= withdrawal;
+                    endingBalance -= withdrawal;
                 } else {
                     // Apply growth factor to balance at end of year
-                    balance = (balance - withdrawal) * (1 + arr);
+                    endingBalance = (startingBalance - withdrawal) * (1 + arr);
 
                 }
                 trials[year][trial] = {
                     startingBalance: startingBalance,
                     withdrawal: withdrawal,
-                    endingBalance: balance,
+                    endingBalance: endingBalance,
                     growthRate: arr,
                     cumulativeInflation: withdrawal / initialWithdrawal,
-                    endingBalanceTodaysDollars: balance / (withdrawal / initialWithdrawal)
+                    endingBalanceTodaysDollars: endingBalance / (withdrawal / initialWithdrawal)
                 };
             }
         }
@@ -225,7 +232,7 @@ export class MonteCarlo {
         
         if (simulationConfig.quantiles < 2) throw "Quantiles too small.";
 
-        for (let year = 1; year <= simulationConfig.simulationYears; year++) {
+        for (let year = 0; year < simulationConfig.simulationYears; year++) {
             const resultsForYear = Object.values(simulation[year]);
             // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort#description
             resultsForYear.sort((t1, t2) => { return t1.endingBalance - t2.endingBalance });
@@ -235,7 +242,7 @@ export class MonteCarlo {
 
         const results: StatResults = {};
 
-        for (let year = 0; year <= simulationConfig.simulationYears; year++) {
+        for (let year = 0; year < simulationConfig.simulationYears; year++) {
             // Compute quantiles
             // Initialize results. 
             // Leave thes values for year 0. 
@@ -248,32 +255,24 @@ export class MonteCarlo {
                 quantiles: []
             };
             for (let q = 1; q < simulationConfig.quantiles; q++) {
-                if (year === 0) {
-                    // Year 0 is always starting balance 
-                    results[0].quantiles.push(simulationConfig.savings);
+                // Compute the index into the results array, q% at a time, and push the ending balance
+                let index = Math.floor(simulationConfig.simulationRounds * (q / simulationConfig.quantiles));
+                //check an overflow, and adjust max index
+                if (index >= simulationConfig.simulationRounds) {
+                    index = simulationConfig.simulationRounds - 1;
                 }
-                else {
-                    // Compute the index into the results array, q% at a time, and push the ending balance
-                    let index = Math.floor(simulationConfig.simulationRounds * (q / simulationConfig.quantiles));
-                    //check an overflow, and adjust max index
-                    if (index >= simulationConfig.simulationRounds) {
-                        index = simulationConfig.simulationRounds - 1;
-                    }
-                    //trace(`Year ${year} / Trial ${index}`);
-                    results[year].quantiles.push(sortedTrials[year-1][index].endingBalance);
-                }
+                //trace(`Year ${year} / Trial ${index}`);
+                results[year].quantiles.push(sortedTrials[year][index].endingBalance);
             }
 
-            if (year === 0) continue;
-
             // Median is the middlemost value
-            results[year].min = sortedTrials[year-1][0].endingBalance;
-            results[year].median = sortedTrials[year-1][Math.floor(simulationConfig.simulationRounds * 0.5)].endingBalance;
-            results[year].max = sortedTrials[year - 1][(simulationConfig.simulationRounds - 1)].endingBalance;
+            results[year].min = sortedTrials[year][0].endingBalance;
+            results[year].median = sortedTrials[year][Math.floor(simulationConfig.simulationRounds * 0.5)].endingBalance;
+            results[year].max = sortedTrials[year][(simulationConfig.simulationRounds - 1)].endingBalance;
             
-            const simYearTotal = sortedTrials[year - 1].reduce((acc, curr) => acc + curr.endingBalance, 0);
-            results[year].mean = simYearTotal / sortedTrials[year - 1].length;
-            results[year].stddev = this.stddev(sortedTrials[year - 1].map(t => t.endingBalance));
+            const simYearTotal = sortedTrials[year].reduce((acc, curr) => acc + curr.endingBalance, 0);
+            results[year].mean = simYearTotal / sortedTrials[year].length;
+            results[year].stddev = this.stddev(sortedTrials[year].map(t => t.endingBalance));
         }
         
         

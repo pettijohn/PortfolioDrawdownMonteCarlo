@@ -144,7 +144,6 @@ fn compute_trial(simulation_config: &SimulationConfig, historical_data: &Vec<His
         
         // Pick a random year's performance 
         let rand_index = rand::random::<f64>();
-        // TODO - does this floor() the int and produce an index of 0..49? 
         let year_index = (rand_index * *&historical_data.len() as f64).floor() as usize;
         let random_historical_year = &historical_data[year_index];
 
