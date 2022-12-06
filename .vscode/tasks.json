@@ -25,8 +25,7 @@
 				"cwd": "${workspaceFolder}/drawdown_rust"
 			},
 			"group": {
-				"kind": "build",
-				"isDefault": true
+				"kind": "build"
 			}
 		},
 		{
@@ -38,6 +37,18 @@
 				"cwd": "${workspaceFolder}/drawdown_rust"
 			},
 			"problemMatcher": []
-		}
+		},
+		{
+			"label": "Build drawdown_dotnet",
+			"type": "shell",
+			"command": "dotnet build",
+			"options": {
+				"cwd": "${workspaceFolder}/drawdown_dotnet"
+			},
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
 	]
 }
