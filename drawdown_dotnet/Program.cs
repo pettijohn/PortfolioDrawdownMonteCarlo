@@ -13,7 +13,7 @@ public class Program
             stocks = 0.7,
             bonds = 0.2,
             cash = 0.1,
-            simulation_rounds = 100_000,
+            simulation_rounds = 100,
             simulation_years = 50,
             quantiles = 10
         };
