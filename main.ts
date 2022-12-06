@@ -18,5 +18,5 @@ const results = await simulation.computeSimulation(simulationConfig);
 //console.log(JSON.stringify(results));
 for (let year = 0; year < simulationConfig.simulationYears; year++) {
     const r = results![year];
-    console.log(`${year}: Min ${Math.floor(r.min / 1000000)}M / Max ${Math.floor(r.max / 1000000)}M / Avg ${Math.floor(r.mean / 1000000)}M / Median ${Math.floor(r.median / 1000000)}M`);
+    console.log(`${year}: Min ${Math.floor(r.min / 1000000)}M / Max ${Math.floor(r.max / 1000000)}M / Avg ${Math.floor(r.mean / 1000000)}M / Median ${Math.floor(r.median / 1000000)}M / Stddev ${Math.floor(r.stddev / 1000000)}M`);
 }

@@ -210,7 +210,7 @@ fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) 
                 mean: year_slice.iter().fold(0.0, |acc, x| acc + x.ending_balance) / simulation_config.simulation_rounds as f64,
                 median: year_slice[(simulation_config.simulation_rounds / 2) as usize].ending_balance,
                 quantiles: Vec::<f64>::new(),
-                stddev: 0.0,
+                stddev: stddev(year_slice.iter().map(|y| y.ending_balance).collect()),
             };
 
             stats
@@ -222,3 +222,21 @@ fn compute_stats(simulation_config: &SimulationConfig, simulation: &Simulation) 
 
 }
 
+fn stddev(arr: Vec<f64>) -> f64 {
+    // Creating the mean with Array.reduce
+    let mean = arr.iter().fold(0.0, |acc, x| {acc + x}) / arr.len() as f64;
+    
+    // Assigning (value - mean) ^ 2 to every array item
+    let arrk: Vec::<f64> = arr.iter().map(|k| {
+        (k - mean).powf(2.0)
+    }).collect();
+    
+    // Calculating the sum of updated array
+    let sum = arrk.iter().fold(0.0, |acc, x| {acc + x});
+        
+    //    // Calculating the variance
+    //    const variance = sum / arr.length
+        
+    // Returning the Standered deviation
+    (sum / arrk.len() as f64).sqrt()
+}
