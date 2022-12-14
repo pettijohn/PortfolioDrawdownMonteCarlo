@@ -5,6 +5,8 @@ using System.Text.Json;
 using System.Linq;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Concurrent;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace MonteCarloDrawdown;
 /*
@@ -20,11 +22,25 @@ VOCABULARY
 
 public class HistoricalMarketData
 {
-    public int year;
-    public double stocks;
-    public double bonds;
-    public double cash;
-    public double cpi;
+    [JsonConstructorAttribute]
+    public HistoricalMarketData() { }
+    public int year { get; set; }
+    //public int year;
+    public double stocks { get; set; }
+    //public double stocks;
+    public double bonds { get; set; }
+    //public double bonds;
+    public double cash { get; set; }
+    //public double cash;
+    public double cpi { get; set; }
+    //public double cpi;
+}
+
+[JsonSourceGenerationOptions(WriteIndented = true)]
+[JsonSerializable(typeof(HistoricalMarketData))]
+[JsonSerializable(typeof(HistoricalMarketData[]))]
+internal partial class SourceGenerationContext : JsonSerializerContext
+{
 }
 
 public class SimulationConfig
@@ -92,13 +108,10 @@ public class MonteCarlo {
 
     public StatResults simulation(SimulationConfig simulation_config)
     {
-
-
         using (var reader = new StreamReader("../data/historicalMarketData.json"))
         {
             var contents = reader.ReadToEnd();
-            //Console.WriteLine(contents);
-            var historical_data = JsonSerializer.Deserialize<HistoricalMarketData[]>(contents, new JsonSerializerOptions() {IncludeFields=true});
+            var historical_data = JsonSerializer.Deserialize<HistoricalMarketData[]>(contents, new JsonSerializerOptions() { TypeInfoResolver = SourceGenerationContext.Default });
             var simulation_results = compute_simulation(simulation_config, historical_data!);
             var stats = compute_stats(simulation_config, simulation_results);
             return new StatResults() { years = stats };
@@ -110,6 +123,8 @@ public class MonteCarlo {
         // Compute 100k Trials on 8 threads, append results to Simuluation
         var simulation = new Simulation();
 
+        // TODO - https://learn.microsoft.com/en-us/dotnet/standard/parallel-programming/how-to-speed-up-small-loop-bodies
+        // I think this ^^ will run faster
         Parallel.ForEach(Enumerable.Range(0, simulation_config.simulation_rounds),
             (_) =>
             {
