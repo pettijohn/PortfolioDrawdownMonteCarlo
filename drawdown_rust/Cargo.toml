@@ -12,6 +12,9 @@ rayon = "1.6.0"
 serde = { version = "1.0.147", features = ["derive"] }
 serde_json = { version = "1.0.87", features = ["preserve_order", "float_roundtrip"] }
 
+[[bin]]
+name = "drawdown_rust"
 
 [lib]
 crate-type = ["staticlib", "cdylib"]
+name = "montecarlo"
