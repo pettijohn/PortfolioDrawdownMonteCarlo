@@ -9,6 +9,9 @@ use rand::prelude::*;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::historicaldata;
+
+ 
 /*
 VOCABULARY
 
@@ -100,10 +103,10 @@ impl StatResults {
 
 
 pub fn simulation(simulation_config: SimulationConfig) -> StatResults {
-    let mut file = File::open("../data/historicalMarketData.json").expect("Unable to OPEN historicalMarketData.json!");
-    let mut contents = String::new();
-    file.read_to_string(&mut contents).expect("Unable to READ historicalMarketData.json!");
-    let historical_data: Vec<HistoricalMarketData> = serde_json::from_str(&contents).unwrap();
+    //let mut file = File::open("../data/historicalMarketData.json").expect("Unable to OPEN historicalMarketData.json!");
+    //let mut contents = String::new();
+    //file.read_to_string(&mut contents).expect("Unable to READ historicalMarketData.json!");
+    let historical_data: Vec<HistoricalMarketData> = serde_json::from_str(historicaldata::json_string()).unwrap();
     
     let simulation_results = compute_simulation(&simulation_config, &historical_data);
     let years = compute_stats(&simulation_config, &simulation_results);
@@ -240,3 +243,5 @@ fn stddev(arr: Vec<f64>) -> f64 {
     // Returning the Standered deviation
     (sum / arrk.len() as f64).sqrt()
 }
+
+

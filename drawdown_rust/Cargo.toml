@@ -12,9 +12,16 @@ rayon = "1.6.0"
 serde = { version = "1.0.147", features = ["derive"] }
 serde_json = { version = "1.0.87", features = ["preserve_order", "float_roundtrip"] }
 
-[[bin]]
-name = "drawdown_rust"
+# Don't need this if following convention of file bin/main.rs
+#[[bin]]
+#name = "montecarlo"
+#path = "bin/main.rs"
 
 [lib]
-crate-type = ["staticlib", "cdylib"]
+# https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-crate-type-field
+# I couldn't import montecarlo in main.rs because I was missing "lib" 
+# It wasn't compiling a library that Rust itself could reference. 
+# Source code reference isn't enough. Seems like rustc compiles the library
+# and then references *the library*, not the source, from main.rs.
+crate-type = ["lib", "staticlib", "cdylib"]
 name = "montecarlo"

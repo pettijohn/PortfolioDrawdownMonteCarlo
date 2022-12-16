@@ -1,7 +1,7 @@
-mod montecarlo;
+use montecarlo::algorithm;
 
 fn main() -> std::io::Result<()> {
-    let simulation_config = montecarlo::SimulationConfig {
+    let simulation_config = algorithm::SimulationConfig {
         savings: 3_000_000.0,
         withdrawal_rate: 0.04,
         stocks: 0.7,
@@ -14,7 +14,7 @@ fn main() -> std::io::Result<()> {
 
     println!("savings: {} withdrawalRate: {} stocks: {}, bonds: {} cash: {}", 
         simulation_config.savings, simulation_config.withdrawal_rate, simulation_config.stocks, simulation_config.bonds, simulation_config.cash);
-    let stat_results = montecarlo::simulation(simulation_config);
+    let stat_results = algorithm::simulation(simulation_config);
     for result in stat_results.years {
         println!("{}: Min {}M / Max {}M / Avg {}M, / Median {}M / Stddev {}M", result.year, (result.min/1000000.0).floor(), 
             (result.max/1000000.0).floor(), (result.mean/1000000.0).floor(), (result.median/1000000.0).floor(), (result.stddev/1000000.0).floor());
