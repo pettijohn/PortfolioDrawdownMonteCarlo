@@ -2,6 +2,16 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": ".NET Core Launch (console)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "Build drawdown_dotnet",
+            "program": "${workspaceFolder}/drawdown_dotnet/bin/Debug/net7.0/DrawdownDotNet.dll",
+            "cwd": "${workspaceFolder}/drawdown_dotnet",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
             "request": "launch",
             "name": "Launch and Attach Deno",
             "type": "node",

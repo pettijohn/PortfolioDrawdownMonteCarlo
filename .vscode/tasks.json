@@ -5,17 +5,50 @@
 			"label": "Bundle",
 			"type": "shell",
 			"command": "deno bundle monteCarloApp.tsx out/monteCarlo.bundle.js",
-			"problemMatcher": [ "$tsc" ],
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			}
+			"problemMatcher": [
+				"$tsc"
+			]
 		},
 		{
 			"label": "Bundle with scriptmap",
 			"type": "shell",
 			"command": "deno_bundle monteCarloApp.tsx out/monteCarlo.bundle.js",
-			"problemMatcher": [ "$tsc" ]
-		}
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "Build drawdown_rust",
+			"type": "shell",
+			"command": "cargo build",
+			"options": {
+				"cwd": "${workspaceFolder}/drawdown_rust"
+			},
+			"group": {
+				"kind": "build"
+			}
+		},
+		{
+			"label": "Run drawdown_rust",
+			"type": "shell",
+			"command": "cargo run",
+			"dependsOn": "Build drawdown_rust",
+			"options": {
+				"cwd": "${workspaceFolder}/drawdown_rust"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Build drawdown_dotnet",
+			"type": "shell",
+			"command": "dotnet build",
+			"options": {
+				"cwd": "${workspaceFolder}/drawdown_dotnet"
+			},
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
 	]
 }
