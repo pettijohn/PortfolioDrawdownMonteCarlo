@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"sort"
+	"sync"
 )
 
 /*
@@ -86,15 +87,27 @@ func simulation(simulation_config SimulationConfig) StatResults {
 }
 
 func compute_simulation(simulation_config SimulationConfig, historical_data []HistoricalMarketData) Simulation {
-	// Compute 100k Trials on 8 threads, append results to Simuluation
+	// Compute 100k Trials on 8 threads, append results to Simulation
 	simulation := Simulation{}
 
+	c := make(chan Trial, simulation_config.Simulation_rounds)
+	var wg sync.WaitGroup
+	wg.Add(simulation_config.Simulation_rounds)
+
 	for round := 0; round < simulation_config.Simulation_rounds; round++ {
-		var trial = compute_trial(simulation_config, historical_data)
-		simulation.trials = append(simulation.trials, trial)
+		go func(ch chan Trial) {
+			ch <- compute_trial(simulation_config, historical_data)
+			wg.Done()
+		}(c)
 	}
 
-	fmt.Println("Completed %d Trials", len(simulation.trials))
+	wg.Wait()
+	close(c)
+
+	for trial := range c {
+		simulation.trials = append(simulation.trials, trial)
+	}
+	fmt.Printf("Completed %d Trials", len(simulation.trials))
 
 	return simulation
 }
