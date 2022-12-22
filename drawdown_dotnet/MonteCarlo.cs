@@ -123,24 +123,24 @@ public class MonteCarlo {
         // Compute 100k Trials on 8 threads, append results to Simuluation
         var simulation = new Simulation();
 
-        // TODO - https://learn.microsoft.com/en-us/dotnet/standard/parallel-programming/how-to-speed-up-small-loop-bodies
-        // I think this ^^ will run faster
-        var rangePartitioner = Partitioner.Create(0, simulation_config.simulation_rounds);
-
-        Parallel.ForEach(rangePartitioner, (range, loopState) => {
-            for (int i = range.Item1; i < range.Item2; i++)
-            {
-                var trial = compute_trial(simulation_config, historical_data);
-                simulation.trials.Add(trial);
-            }
-        });
-
-        // Parallel.ForEach(Enumerable.Range(0, simulation_config.simulation_rounds),
-        //     (_) =>
+        // https://learn.microsoft.com/en-us/dotnet/standard/parallel-programming/how-to-speed-up-small-loop-bodies
+        // var rangePartitioner = Partitioner.Create(0, simulation_config.simulation_rounds);
+        // Console.WriteLine("RangePartitioner");
+        // Parallel.ForEach(rangePartitioner, (range, loopState) => {
+        //     for (int i = range.Item1; i < range.Item2; i++)
         //     {
         //         var trial = compute_trial(simulation_config, historical_data);
         //         simulation.trials.Add(trial);
-        //     });
+        //     }
+        // });
+
+        Console.WriteLine("Parallel.ForEach");
+        Parallel.ForEach(Enumerable.Range(0, simulation_config.simulation_rounds),
+            (_) =>
+            {
+                var trial = compute_trial(simulation_config, historical_data);
+                simulation.trials.Add(trial);
+            });
 
         Console.WriteLine("Completed {0} Trials", simulation.trials.Count);
 
@@ -213,51 +213,46 @@ public class MonteCarlo {
     public StatsSingleYear[] compute_stats(SimulationConfig simulation_config, Simulation simulation)
     {
         var results = new ConcurrentBag<StatsSingleYear>();
-        var rangePartitioner = Partitioner.Create(0, simulation_config.simulation_years);
+        // var rangePartitioner = Partitioner.Create(0, simulation_config.simulation_years);
+        // Parallel.ForEach(rangePartitioner, (range, loopState) => {
+        //     for (int year = range.Item1; year < range.Item2; year++)
+        //     {
+        //         // Sort each of the fifty years and then compute quantiles  in a thread and rost by ending balance
+        //         var year_slice = simulation.trials
+        //             .Select((trial) => trial.years[year] )
+        //             .OrderBy((a) =>  a.ending_balance ).ToArray();
 
-        Parallel.ForEach(rangePartitioner, (range, loopState) => {
-            for (int year = range.Item1; year < range.Item2; year++)
-            {
-                // Sort each of the fifty years and then compute quantiles  in a thread and rost by ending balance
-                var year_slice = simulation.trials
-                    .Select((trial) => trial.years[year] )
-                    .OrderBy((a) =>  a.ending_balance ).ToArray();
-
-                
-
-                var stats = new StatsSingleYear() {
-                    year = year,
-                    min = year_slice[0].ending_balance,
-                    max = year_slice[(simulation_config.simulation_rounds - 1)].ending_balance,
-                    mean = year_slice.Select(y => y.ending_balance).Average(),
-                    median = year_slice[(simulation_config.simulation_rounds / 2)].ending_balance,
-                    quantiles = new List<double>(),
-                    stddev = StandardDeviation(year_slice.Select(y => y.ending_balance))
-                };
-                results.Add(stats);
-            }
-        });
-
-        // Parallel.ForEach(Enumerable.Range(0, simulation_config.simulation_years), (year) => {
-
-        //     // Sort each of the fifty years and then compute quantiles  in a thread and rost by ending balance
-        //     var year_slice = simulation.trials
-        //         .Select((trial) => trial.years[year] )
-        //         .OrderBy((a) =>  a.ending_balance ).ToArray();
-
-            
-
-        //     var stats = new StatsSingleYear() {
-        //         year = year,
-        //         min = year_slice[0].ending_balance,
-        //         max = year_slice[(simulation_config.simulation_rounds - 1)].ending_balance,
-        //         mean = year_slice.Select(y => y.ending_balance).Average(),
-        //         median = year_slice[(simulation_config.simulation_rounds / 2)].ending_balance,
-        //         quantiles = new List<double>(),
-        //         stddev = StandardDeviation(year_slice.Select(y => y.ending_balance))
-        //     };
-        //     results.Add(stats);
+        //         var stats = new StatsSingleYear() {
+        //             year = year,
+        //             min = year_slice[0].ending_balance,
+        //             max = year_slice[(simulation_config.simulation_rounds - 1)].ending_balance,
+        //             mean = year_slice.Select(y => y.ending_balance).Average(),
+        //             median = year_slice[(simulation_config.simulation_rounds / 2)].ending_balance,
+        //             quantiles = new List<double>(),
+        //             stddev = StandardDeviation(year_slice.Select(y => y.ending_balance))
+        //         };
+        //         results.Add(stats);
+        //     }
         // });
+
+        Parallel.ForEach(Enumerable.Range(0, simulation_config.simulation_years), (year) => {
+
+            // Sort each of the fifty years and then compute quantiles  in a thread and rost by ending balance
+            var year_slice = simulation.trials
+                .Select((trial) => trial.years[year] )
+                .OrderBy((a) =>  a.ending_balance ).ToArray();
+
+            var stats = new StatsSingleYear() {
+                year = year,
+                min = year_slice[0].ending_balance,
+                max = year_slice[(simulation_config.simulation_rounds - 1)].ending_balance,
+                mean = year_slice.Select(y => y.ending_balance).Average(),
+                median = year_slice[(simulation_config.simulation_rounds / 2)].ending_balance,
+                quantiles = new List<double>(),
+                stddev = StandardDeviation(year_slice.Select(y => y.ending_balance))
+            };
+            results.Add(stats);
+        });
 
         return results.OrderBy(r => r.year).ToArray();
     }
