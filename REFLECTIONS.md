@@ -28,10 +28,12 @@ As I learn and explore, I am evaluating these technologies for fit to my program
 | Language | Elapsed (wall clock) time | Maximum resident set (KB) | Executable Size |
 |----------|---------------------------|----------------------|-----------------|
 | Rust     | 0.31s                     | 325,568              | 4.3M            |
-| C# Native AOT | 1.45s                | 733,392              | 38M             |
+| C# Native AOT (Parallel.ForEach) | 1.45s                | 733,392              | 38M             |
 | Go (one goroutine per iteration)  | 1.58s | 1,138,860        | 1.7M            |
 | Go (one goroutine per CPU thread) | 1.80s | 1,031,936        | 1.7M            |
-| C# (.NET Runtime) | 2.87s            | 674,840              | -               |
+| C# Native AOT (RangePartitioner) | 2.32s                | 673,360              | 38M             |
+| C# (.NET Runtime, Parallel.ForEach) | 2.87s            | 674,840              | -               |
+| C# (.NET Runtime, RangePartitioner) | 2.88s            | 663,428              | -               |
 | Deno Typescript | 9.87s              | 730,828              | -               |
 
 * Elapsed (wall clock) time for 100k trials/50 years per trial (Release mode): Rust: 0.29s. C# NativeAOT: 1.46s. Go: 1.59s. C# Runtime: 2.97. Deno JS: 8.67s. 
