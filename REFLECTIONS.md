@@ -27,17 +27,18 @@ As I learn and explore, I am evaluating these technologies for fit to my program
 
 * Go release mode `go build -ldflags "-s -w"`
 * `dotnet publish -c Release && ./bin/Release/net7.0/linux-x64/native/DrawdownDotNet`
+  * `<PublishAot>true</PublishAot><StripSymbols>true</StripSymbols>`
 
-| Language | Elapsed (wall clock) time | Maximum resident set (KB) | Executable Size |
-|----------|---------------------------|----------------------|-----------------|
-| Rust     | 0.31s                     | 325,568              | 4.3M            |
-| C# Native AOT (RangePartitioner) | 1.34s                | 669,368              | 29M             |
-| C# Native AOT (Parallel.ForEach) | 1.36s                | 670,108              | 29M             |
-| Go (one goroutine per iteration)  | 1.58s | 1,138,860        | 1.7M            |
-| Go (one goroutine per CPU thread) | 1.80s | 1,031,936        | 1.7M            |
-| C# (.NET Runtime, Parallel.ForEach) | 2.87s            | 674,840              | -               |
-| C# (.NET Runtime, RangePartitioner) | 2.88s            | 663,428              | -               |
-| Deno Typescript | 9.87s              | 730,828              | -               |
+| Language                             | Elapsed (wall clock) time | Maximum resident set (KB) | Executable Size |
+|--------------------------------------|---------------------------|---------------------------|-----------------|
+| Rust                                 | 0.31s                     | 325,568                   | 4.3M            |
+| C# Native AOT (RangePartitioner)     | 1.34s                     | 669,368                   | 8.8M            |
+| C# Native AOT (Parallel.ForEach)     | 1.36s                     | 670,108                   | 8.8M            |
+| Go (one goroutine per iteration)     | 1.58s                     | 1,138,860                 | 1.7M            |
+| Go (one goroutine per CPU thread)    | 1.80s                     | 1,031,936                 | 1.7M            |
+| C# (.NET Runtime, Parallel.ForEach)  | 2.87s                     | 674,840                   | Framework req'd |
+| C# (.NET Runtime, RangePartitioner)  | 2.88s                     | 663,428                   | Framework req'd |
+| Deno Typescript                      | 9.87s                     | 730,828                   | Framework req'd |
 
 * Rust's approach and compiler are *awesome,* but the learning curve is *steep.* There were a few times I was stuck for half a day trying to figure out what I was doing wrong. The solution was usually easy: in one case I needed to use a Scoped Thread and not a 'regular' thread. Then I learned about Rayon, a third-party crate that provides parallel iterators. It was simple in the end, but slow to diagnose and move forward, took me three attempts to implement 'right,' why do I need a third-party library to have parallel iterators anyway, and Rayon isn't compatible with WASM threads so I need to go back to scoped threads? All that said - once Rust code compiles, it works--it's difficult to cause a runtime panic. And it runs *fast*. Rust completed the Monte Carlo algorithm, a CPU-bound computation, in less than 1/5 the time of C# NativeAOT. I advise against using Rust as a general purpose language. For compute-sensitive operations, you can interop-call out to Rust, which can compile to run everywhere. 
 * Rust takes a different approach to OOP, using [Traits](https://en.wikipedia.org/wiki/Trait_(computer_programming)), and not supporting inheritance. I had a few struggles with the learning curve, e.g. you can't take a trait as a parameter without using a generic. Rust's learning curve is steep. You can model traits pretty closely with interfaces in C#/Java etc, and in general I like the principle of describing the features you need the object to support rather than taking in a whole class hierarchy. 
