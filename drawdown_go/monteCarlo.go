@@ -90,20 +90,15 @@ func compute_simulation(simulation_config SimulationConfig, historical_data []Hi
 	simulation := Simulation{}
 
 	c := make(chan Trial, simulation_config.Simulation_rounds)
-	//var wg sync.WaitGroup
-	//wg.Add(simulation_config.Simulation_rounds)
 
 	for round := 0; round < simulation_config.Simulation_rounds; round++ {
 		go func() {
-			//		defer wg.Done()
 			c <- compute_trial(simulation_config, historical_data)
 		}()
 	}
 
-	//wg.Wait()
-	//close(c)
-
 	for trial := 0; trial < simulation_config.Simulation_rounds; trial++ {
+		// Order doesn't matter
 		simulation.trials = append(simulation.trials, <-c)
 	}
 	fmt.Printf("Completed %d Trials", len(simulation.trials))
@@ -190,9 +185,11 @@ func compute_stats(simulation_config SimulationConfig, simulation Simulation) []
 	}
 
 	for year := 0; year < simulation_config.Simulation_years; year++ {
+		// Order matters; they arrive whenever each thread completes...
 		results = append(results, <-c)
 	}
 
+	// ...so sort when done
 	sort.Slice(results, func(i, j int) bool { return results[i].Year < results[j].Year })
 	return results
 }
