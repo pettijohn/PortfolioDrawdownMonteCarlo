@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"os"
 	"sort"
-	"sync"
 )
 
 /*
@@ -87,25 +86,25 @@ func simulation(simulation_config SimulationConfig) StatResults {
 }
 
 func compute_simulation(simulation_config SimulationConfig, historical_data []HistoricalMarketData) Simulation {
-	// Compute 100k Trials on 8 threads, append results to Simulation
+	// Compute 100k Trials in parallel, wait for them all to complete, append results to Simulation
 	simulation := Simulation{}
 
 	c := make(chan Trial, simulation_config.Simulation_rounds)
-	var wg sync.WaitGroup
-	wg.Add(simulation_config.Simulation_rounds)
+	//var wg sync.WaitGroup
+	//wg.Add(simulation_config.Simulation_rounds)
 
 	for round := 0; round < simulation_config.Simulation_rounds; round++ {
-		go func(ch chan Trial) {
-			ch <- compute_trial(simulation_config, historical_data)
-			wg.Done()
-		}(c)
+		go func() {
+			//		defer wg.Done()
+			c <- compute_trial(simulation_config, historical_data)
+		}()
 	}
 
-	wg.Wait()
-	close(c)
+	//wg.Wait()
+	//close(c)
 
-	for trial := range c {
-		simulation.trials = append(simulation.trials, trial)
+	for trial := 0; trial < simulation_config.Simulation_rounds; trial++ {
+		simulation.trials = append(simulation.trials, <-c)
 	}
 	fmt.Printf("Completed %d Trials", len(simulation.trials))
 
@@ -163,35 +162,38 @@ func compute_trial(simulation_config SimulationConfig, historical_data []Histori
 }
 
 func compute_stats(simulation_config SimulationConfig, simulation Simulation) []StatsSingleYear {
+	c := make(chan StatsSingleYear)
+
 	results := []StatsSingleYear{}
-	for year := 0; year < simulation_config.Simulation_years; year++ {
-		// Sort each of the fifty years and then compute quantiles  in a thread and rost by ending balance
-		// year_slice =: simulation.trials
-		// 	.Select((trial) => trial.years[year] )
-		// 	.OrderBy((a) =>  a.ending_balance ).ToArray();
+	for y := 0; y < simulation_config.Simulation_years; y++ {
+		go func(year int) {
+			// Sort each of the fifty years and then compute quantiles  in a thread and sort by ending balance
+			year_slice := []SingleYear{}
+			for t := 0; t < simulation_config.Simulation_rounds; t++ {
+				year_slice = append(year_slice, simulation.trials[t].years[year])
+			}
+			sort.Slice(year_slice, func(i, j int) bool {
+				return year_slice[i].ending_balance < year_slice[j].ending_balance
+			})
 
-		year_slice := []SingleYear{}
-		for t := 0; t < simulation_config.Simulation_rounds; t++ {
-			year_slice = append(year_slice, simulation.trials[t].years[year])
-		}
-		sort.Slice(year_slice, func(i, j int) bool {
-			return year_slice[i].ending_balance < year_slice[j].ending_balance
-		})
-
-		stats := StatsSingleYear{
-			Year:      year,
-			Min:       year_slice[0].ending_balance,
-			Max:       year_slice[(simulation_config.Simulation_rounds - 1)].ending_balance,
-			Mean:      0, //year_slice.Select(y => y.ending_balance).Average(),
-			Median:    year_slice[(simulation_config.Simulation_rounds / 2)].ending_balance,
-			Quantiles: nil, //new List<float64>(),
-			Stddev:    0,   //StandardDeviation(year_slice.Select(y => y.ending_balance))
-		}
-		results = append(results, stats)
-		//results.Add(stats)
+			stats := StatsSingleYear{
+				Year:      year,
+				Min:       year_slice[0].ending_balance,
+				Max:       year_slice[(simulation_config.Simulation_rounds - 1)].ending_balance,
+				Mean:      0, //year_slice.Select(y => y.ending_balance).Average(),
+				Median:    year_slice[(simulation_config.Simulation_rounds / 2)].ending_balance,
+				Quantiles: nil, //new List<float64>(),
+				Stddev:    0,   //StandardDeviation(year_slice.Select(y => y.ending_balance))
+			}
+			c <- stats
+		}(y)
 	}
 
-	//return results.OrderBy(r => r.year).ToArray();
+	for year := 0; year < simulation_config.Simulation_years; year++ {
+		results = append(results, <-c)
+	}
+
+	sort.Slice(results, func(i, j int) bool { return results[i].Year < results[j].Year })
 	return results
 }
 
