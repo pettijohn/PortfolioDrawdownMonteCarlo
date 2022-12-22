@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"runtime"
 	"sort"
 )
 
@@ -85,23 +86,69 @@ func simulation(simulation_config SimulationConfig) StatResults {
 	return StatResults{years: stats}
 }
 
+type Range struct {
+	Start, End int
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// Break up size_of_work into degree_of_parallelism chunks, distributing the remainder as
+// evenly as possible across the chunks. E.g. 50 units of work into 8 threads is 6.25 units
+// per thread. The first n (n=remainder) threads get an additional unit of work:
+// [0..7), [7..14), and the rest of the threads get 6 years
+// each to process: [14..20), [20..26), ... [44..50).
+func Determine_parallel_ranges(size_of_work int, degree_of_parallelism int) []Range {
+	// If there is less work than threads available
+	degree_of_parallelism = min(size_of_work, degree_of_parallelism)
+	values_per_thread := size_of_work / degree_of_parallelism
+	remainder := size_of_work % degree_of_parallelism
+	fmt.Println("Remainder:", remainder)
+
+	ranges := make([]Range, degree_of_parallelism)
+	for thread_num := 0; thread_num < degree_of_parallelism; thread_num++ {
+		range_start := (thread_num * values_per_thread) + min(thread_num, remainder)
+		range_end := ((thread_num + 1) * values_per_thread) + min(thread_num+1, remainder)
+		//ranges.push(range_start .. range_end);
+		ranges[thread_num] = Range{
+			Start: range_start,
+			End:   range_end,
+		}
+	}
+
+	return ranges
+}
+
 func compute_simulation(simulation_config SimulationConfig, historical_data []HistoricalMarketData) Simulation {
 	// Compute 100k Trials in parallel, wait for them all to complete, append results to Simulation
 	simulation := Simulation{}
+	ranges := Determine_parallel_ranges(simulation_config.Simulation_rounds, runtime.GOMAXPROCS(0))
 
 	c := make(chan Trial, simulation_config.Simulation_rounds)
 
-	for round := 0; round < simulation_config.Simulation_rounds; round++ {
-		go func() {
-			c <- compute_trial(simulation_config, historical_data)
-		}()
+	for _, r := range ranges {
+		for i := r.Start; i < r.End; i++ {
+			go func() {
+				c <- compute_trial(simulation_config, historical_data)
+			}()
+		}
 	}
+
+	// for round := 0; round < simulation_config.Simulation_rounds; round++ {
+	// 	go func() {
+	// 		c <- compute_trial(simulation_config, historical_data)
+	// 	}()
+	// }
 
 	for trial := 0; trial < simulation_config.Simulation_rounds; trial++ {
 		// Order doesn't matter
 		simulation.trials = append(simulation.trials, <-c)
 	}
-	fmt.Printf("Completed %d Trials", len(simulation.trials))
+	fmt.Println("Completed", len(simulation.trials), "Trials")
 
 	return simulation
 }
@@ -157,33 +204,38 @@ func compute_trial(simulation_config SimulationConfig, historical_data []Histori
 }
 
 func compute_stats(simulation_config SimulationConfig, simulation Simulation) []StatsSingleYear {
+	ranges := Determine_parallel_ranges(simulation_config.Simulation_years, runtime.GOMAXPROCS(0))
+
 	c := make(chan StatsSingleYear)
 
 	results := []StatsSingleYear{}
-	for y := 0; y < simulation_config.Simulation_years; y++ {
-		go func(year int) {
-			// Sort each of the fifty years and then compute quantiles  in a thread and sort by ending balance
-			year_slice := []SingleYear{}
-			for t := 0; t < simulation_config.Simulation_rounds; t++ {
-				year_slice = append(year_slice, simulation.trials[t].years[year])
-			}
-			sort.Slice(year_slice, func(i, j int) bool {
-				return year_slice[i].ending_balance < year_slice[j].ending_balance
-			})
 
-			stats := StatsSingleYear{
-				Year:      year,
-				Min:       year_slice[0].ending_balance,
-				Max:       year_slice[(simulation_config.Simulation_rounds - 1)].ending_balance,
-				Mean:      0, //year_slice.Select(y => y.ending_balance).Average(),
-				Median:    year_slice[(simulation_config.Simulation_rounds / 2)].ending_balance,
-				Quantiles: nil, //new List<float64>(),
-				Stddev:    0,   //StandardDeviation(year_slice.Select(y => y.ending_balance))
+	for _, r := range ranges {
+
+		go func(year_rage Range) {
+			for year := year_rage.Start; year < year_rage.End; year++ {
+				// Sort each of the fifty years and then compute quantiles  in a thread and sort by ending balance
+				year_slice := []SingleYear{}
+				for t := 0; t < simulation_config.Simulation_rounds; t++ {
+					year_slice = append(year_slice, simulation.trials[t].years[year])
+				}
+				sort.Slice(year_slice, func(i, j int) bool {
+					return year_slice[i].ending_balance < year_slice[j].ending_balance
+				})
+
+				stats := StatsSingleYear{
+					Year:      year,
+					Min:       year_slice[0].ending_balance,
+					Max:       year_slice[(simulation_config.Simulation_rounds - 1)].ending_balance,
+					Mean:      0, //year_slice.Select(y => y.ending_balance).Average(),
+					Median:    year_slice[(simulation_config.Simulation_rounds / 2)].ending_balance,
+					Quantiles: nil, //new List<float64>(),
+					Stddev:    0,   //StandardDeviation(year_slice.Select(y => y.ending_balance))
+				}
+				c <- stats
 			}
-			c <- stats
-		}(y)
+		}(r)
 	}
-
 	for year := 0; year < simulation_config.Simulation_years; year++ {
 		// Order matters; they arrive whenever each thread completes...
 		results = append(results, <-c)

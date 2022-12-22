@@ -29,7 +29,8 @@ As I learn and explore, I am evaluating these technologies for fit to my program
 |----------|---------------------------|----------------------|-----------------|
 | Rust     | 0.31s                     | 325,568              | 4.3M            |
 | C# Native AOT | 1.45s                | 733,392              | 38M             |
-| Go (one goroutine per iteration) | 1.58s | 1,138,860        | 1.7M            |
+| Go (one goroutine per iteration)  | 1.58s | 1,138,860        | 1.7M            |
+| Go (one goroutine per CPU thread) | 1.80s | 1,031,936        | 1.7M            |
 | C# (.NET Runtime) | 2.87s            | 674,840              | -               |
 | Deno Typescript | 9.87s              | 730,828              | -               |
 

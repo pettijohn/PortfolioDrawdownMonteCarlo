@@ -5,6 +5,12 @@ import (
 )
 
 func main() {
+	// ranges := determine_parallel_ranges(50, 8)
+	// for i, v := range ranges {
+	// 	fmt.Println(i, ":", v.Start, "->", v.End)
+	// }
+	// return
+
 	simulation_config := SimulationConfig{
 		Savings:           3000000,
 		Withdrawal_rate:   0.04,
