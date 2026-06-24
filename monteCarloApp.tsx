@@ -17,7 +17,7 @@ interface AppState extends AllocationProps {
 class App extends React.Component<Record<never,never>, AppState> {
   constructor(props: Record<never,never>) {
     super(props);
-    const defaultState = {
+    const defaultState: AppState = {
       stocksPercent: 50,
       bondsPercent: 30,
       cashPercent: 20,
@@ -28,25 +28,14 @@ class App extends React.Component<Record<never,never>, AppState> {
       chartDollarMode: ChartDollarMode.Nominal,
       onChange: undefined
     };
-    const STORAGE_KEY = "savedState";
-    const savedState = window.localStorage.getItem(STORAGE_KEY);
-    if (savedState) {
-      try {
-        this.state = { ...defaultState, ...JSON.parse(savedState) } as AppState;
-      } catch (error) {
-        window.localStorage.removeItem(STORAGE_KEY)
-        this.state = defaultState;
-      }
-    }
-    else {
-      this.state = defaultState;
-    }
+    this.state = this.stateFromUrl(defaultState);
 
     // This binding is necessary to make `this` work in the callback
     this.handleAllocationChange = this.handleAllocationChange.bind(this);
     this.handleChartDollarModeChange = this.handleChartDollarModeChange.bind(this);
     this.runSimulation = this.runSimulation.bind(this);
     this.simulationStateChanged = this.simulationStateChanged.bind(this);
+    this.updateUrlFromState = this.updateUrlFromState.bind(this);
 
     // Initialize the simulation & attach state change callback
     this.MonteCarloSimulation = new MonteCarlo();
@@ -84,7 +73,7 @@ class App extends React.Component<Record<never,never>, AppState> {
   }
 
   handleChartDollarModeChange(event: React.ChangeEvent<HTMLSelectElement>) {
-    this.setState({ chartDollarMode: event.target.value as ChartDollarMode });
+    this.setState({ chartDollarMode: event.target.value as ChartDollarMode }, this.updateUrlFromState);
   }
 
   async runSimulation(_event: React.MouseEvent<HTMLButtonElement>) {
@@ -143,7 +132,7 @@ class App extends React.Component<Record<never,never>, AppState> {
             }
         }
         else return {...state};
-    });
+    }, this.updateUrlFromState);
   }
 
   handleAllocationChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -155,10 +144,10 @@ class App extends React.Component<Record<never,never>, AppState> {
       // This is a weird typescript validation issue that it can't validate them all at once
       switch (key) {
           case "startingBalance":
-              this.setState({ [key]: value });
+              this.setState({ [key]: value }, this.updateUrlFromState);
               break;
           case "drawdownRate":
-              this.setState({ [key]: value });
+              this.setState({ [key]: value }, this.updateUrlFromState);
               break;
           case "stocksPercent":
               this.setAllocationState(value, undefined, undefined);
@@ -170,14 +159,72 @@ class App extends React.Component<Record<never,never>, AppState> {
               this.setAllocationState(undefined, undefined, value);
               break;
           case "simulationRounds":
-            this.setState({ [key]: value });
+            this.setState({ [key]: value }, this.updateUrlFromState);
             break;
           case "simulationYears":
-              this.setState({ [key]: value });
+              this.setState({ [key]: value }, this.updateUrlFromState);
               break;
           default:
               break;
       }
+  }
+
+  stateFromUrl(defaultState: AppState): AppState {
+    const params = new URLSearchParams(window.location.search);
+    const state = { ...defaultState };
+    const numberKeys: (keyof Pick<AppState,
+      "startingBalance" |
+      "drawdownRate" |
+      "stocksPercent" |
+      "bondsPercent" |
+      "cashPercent" |
+      "simulationRounds" |
+      "simulationYears"
+    >)[] = [
+      "startingBalance",
+      "drawdownRate",
+      "stocksPercent",
+      "bondsPercent",
+      "cashPercent",
+      "simulationRounds",
+      "simulationYears"
+    ];
+
+    for (const key of numberKeys) {
+      const value = params.get(key);
+      if (value === null) {
+        continue;
+      }
+
+      const parsedValue = Number(value);
+      if (Number.isFinite(parsedValue)) {
+        state[key] = parsedValue;
+      }
+    }
+
+    const chartDollarMode = params.get("chartDollarMode");
+    if (
+      chartDollarMode === ChartDollarMode.Nominal ||
+      chartDollarMode === ChartDollarMode.InflationAdjusted
+    ) {
+      state.chartDollarMode = chartDollarMode;
+    }
+
+    return state;
+  }
+
+  updateUrlFromState() {
+    const url = new URL(window.location.href);
+    url.searchParams.set("startingBalance", String(this.state.startingBalance));
+    url.searchParams.set("drawdownRate", String(this.state.drawdownRate));
+    url.searchParams.set("stocksPercent", String(this.state.stocksPercent));
+    url.searchParams.set("bondsPercent", String(this.state.bondsPercent));
+    url.searchParams.set("cashPercent", String(this.state.cashPercent));
+    url.searchParams.set("simulationRounds", String(this.state.simulationRounds));
+    url.searchParams.set("simulationYears", String(this.state.simulationYears));
+    url.searchParams.set("chartDollarMode", this.state.chartDollarMode);
+
+    window.history.replaceState({}, "", url);
   }
 }
 

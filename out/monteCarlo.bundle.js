@@ -14773,25 +14773,12 @@ var App = class extends ae {
       chartDollarMode: ChartDollarMode.Nominal,
       onChange: void 0
     };
-    const STORAGE_KEY = "savedState";
-    const savedState = window.localStorage.getItem(STORAGE_KEY);
-    if (savedState) {
-      try {
-        this.state = {
-          ...defaultState,
-          ...JSON.parse(savedState)
-        };
-      } catch (error) {
-        window.localStorage.removeItem(STORAGE_KEY);
-        this.state = defaultState;
-      }
-    } else {
-      this.state = defaultState;
-    }
+    this.state = this.stateFromUrl(defaultState);
     this.handleAllocationChange = this.handleAllocationChange.bind(this);
     this.handleChartDollarModeChange = this.handleChartDollarModeChange.bind(this);
     this.runSimulation = this.runSimulation.bind(this);
     this.simulationStateChanged = this.simulationStateChanged.bind(this);
+    this.updateUrlFromState = this.updateUrlFromState.bind(this);
     this.MonteCarloSimulation = new MonteCarlo();
     this.MonteCarloSimulation.onSimulationStateChange = this.simulationStateChanged;
   }
@@ -14835,7 +14822,7 @@ var App = class extends ae {
   handleChartDollarModeChange(event) {
     this.setState({
       chartDollarMode: event.target.value
-    });
+    }, this.updateUrlFromState);
   }
   async runSimulation(_event) {
     const inputs = {
@@ -14883,7 +14870,7 @@ var App = class extends ae {
       } else return {
         ...state
       };
-    });
+    }, this.updateUrlFromState);
   }
   handleAllocationChange(event) {
     const value = parseFloat(event.target.value);
@@ -14892,12 +14879,12 @@ var App = class extends ae {
       case "startingBalance":
         this.setState({
           [key]: value
-        });
+        }, this.updateUrlFromState);
         break;
       case "drawdownRate":
         this.setState({
           [key]: value
-        });
+        }, this.updateUrlFromState);
         break;
       case "stocksPercent":
         this.setAllocationState(value, void 0, void 0);
@@ -14911,16 +14898,58 @@ var App = class extends ae {
       case "simulationRounds":
         this.setState({
           [key]: value
-        });
+        }, this.updateUrlFromState);
         break;
       case "simulationYears":
         this.setState({
           [key]: value
-        });
+        }, this.updateUrlFromState);
         break;
       default:
         break;
     }
+  }
+  stateFromUrl(defaultState) {
+    const params = new URLSearchParams(window.location.search);
+    const state = {
+      ...defaultState
+    };
+    const numberKeys = [
+      "startingBalance",
+      "drawdownRate",
+      "stocksPercent",
+      "bondsPercent",
+      "cashPercent",
+      "simulationRounds",
+      "simulationYears"
+    ];
+    for (const key of numberKeys) {
+      const value = params.get(key);
+      if (value === null) {
+        continue;
+      }
+      const parsedValue = Number(value);
+      if (Number.isFinite(parsedValue)) {
+        state[key] = parsedValue;
+      }
+    }
+    const chartDollarMode = params.get("chartDollarMode");
+    if (chartDollarMode === ChartDollarMode.Nominal || chartDollarMode === ChartDollarMode.InflationAdjusted) {
+      state.chartDollarMode = chartDollarMode;
+    }
+    return state;
+  }
+  updateUrlFromState() {
+    const url = new URL(window.location.href);
+    url.searchParams.set("startingBalance", String(this.state.startingBalance));
+    url.searchParams.set("drawdownRate", String(this.state.drawdownRate));
+    url.searchParams.set("stocksPercent", String(this.state.stocksPercent));
+    url.searchParams.set("bondsPercent", String(this.state.bondsPercent));
+    url.searchParams.set("cashPercent", String(this.state.cashPercent));
+    url.searchParams.set("simulationRounds", String(this.state.simulationRounds));
+    url.searchParams.set("simulationYears", String(this.state.simulationYears));
+    url.searchParams.set("chartDollarMode", this.state.chartDollarMode);
+    window.history.replaceState({}, "", url);
   }
 };
 If(/* @__PURE__ */ me(App, null), document.getElementById("root"));
