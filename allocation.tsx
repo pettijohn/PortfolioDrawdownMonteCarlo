@@ -28,7 +28,7 @@ export class Allocation extends React.Component<AllocationProps> {
 
     override render() {
         return (
-            <div><h1>Portfolio Drawdown Monte Carlo Simulation</h1><h2>Portfolio Allocation</h2>
+            <div><h1>Portfolio Drawdown Monte Carlo Simulation</h1><h2>Allocation</h2>
                 <ul>
                     <li><label htmlFor="startingBalance" className="slider">Total starting balance USD:</label>
                         <input className="slider" type="range" min="100000" max="20000000" step="100000" id="startingBalance" value={this.props.startingBalance} onChange={this.props.onChange} />

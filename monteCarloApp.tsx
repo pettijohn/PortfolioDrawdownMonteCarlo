@@ -5,12 +5,13 @@ import * as ReactDOM from "https://esm.sh/react-dom@17.0.2?pin=v74";
 
 
 import { Allocation, AllocationProps } from "./allocation.tsx";
-import { SimulationConfig, MonteCarlo, SimulationState } from "./monteCarlo.ts";
+import { SimulationConfig, SimulationState, SimulationStatus } from "./monteCarlo.ts";
+import { SimulationWorkerMessage, SimulationWorkerRequest } from "./monteCarloWorkerMessages.ts";
 import { ChartDollarMode, Charts } from "./charts.tsx";
 
 
 interface AppState extends AllocationProps {
-  simulationState?: SimulationState,
+  simulationState?: SimulationStatus,
   chartDollarMode: ChartDollarMode
 }
 
@@ -33,21 +34,13 @@ class App extends React.Component<Record<never,never>, AppState> {
     // This binding is necessary to make `this` work in the callback
     this.handleAllocationChange = this.handleAllocationChange.bind(this);
     this.handleChartDollarModeChange = this.handleChartDollarModeChange.bind(this);
+    this.handleWorkerMessage = this.handleWorkerMessage.bind(this);
     this.runSimulation = this.runSimulation.bind(this);
-    this.simulationStateChanged = this.simulationStateChanged.bind(this);
     this.updateUrlFromState = this.updateUrlFromState.bind(this);
-
-    // Initialize the simulation & attach state change callback
-    this.MonteCarloSimulation = new MonteCarlo();
-    this.MonteCarloSimulation.onSimulationStateChange = this.simulationStateChanged;
   }
 
-  MonteCarloSimulation: MonteCarlo;
-
-  /** Report state changes of the simulation */
-  simulationStateChanged(state: SimulationState) {
-    this.setState({ simulationState: state });
-  }
+  simulationRequestId = 0;
+  simulationWorker?: Worker;
 
   override render() {
     let charts;
@@ -88,13 +81,59 @@ class App extends React.Component<Record<never,never>, AppState> {
       quantiles: 4
     };
 
-    const results = await this.MonteCarloSimulation.computeSimulation(inputs);
-    if (results)
-      this.setState({ simulationResults: results });
-    // this.MonteCarloSimulation.runMonteCarlo(inputs, 4).then(results => {
-    //   if (results)
-    //     this.setState({ simulationResults: results })
-    // });
+    this.simulationWorker?.terminate();
+
+    const requestId = ++this.simulationRequestId;
+    const worker = new Worker("./out/monteCarlo.worker.js", { type: "module" });
+    this.simulationWorker = worker;
+    worker.onmessage = this.handleWorkerMessage;
+    worker.onerror = (error) => {
+      if (requestId !== this.simulationRequestId) {
+        return;
+      }
+
+      this.simulationWorker?.terminate();
+      this.simulationWorker = undefined;
+      this.setState({ simulationState: SimulationState.Stopped });
+      console.error(error);
+    };
+
+    this.setState({ simulationState: SimulationState.Initializing });
+
+    const message: SimulationWorkerRequest = {
+      type: "run",
+      requestId,
+      config: inputs
+    };
+    worker.postMessage(message);
+  }
+
+  handleWorkerMessage(event: MessageEvent<SimulationWorkerMessage>) {
+    const message = event.data;
+
+    if (message.requestId !== this.simulationRequestId) {
+      return;
+    }
+
+    switch (message.type) {
+      case "state":
+        this.setState({ simulationState: message.state });
+        break;
+      case "result":
+        this.simulationWorker?.terminate();
+        this.simulationWorker = undefined;
+        this.setState({
+          simulationResults: message.results ?? undefined,
+          simulationState: SimulationState.Stopped
+        });
+        break;
+      case "error":
+        this.simulationWorker?.terminate();
+        this.simulationWorker = undefined;
+        this.setState({ simulationState: SimulationState.Stopped });
+        console.error(message.message);
+        break;
+    }
   }
 
   setAllocationState(stocks?: number, bonds?: number, cash?: number) {

@@ -4,7 +4,7 @@
 		{
 			"label": "Bundle",
 			"type": "shell",
-			"command": "deno bundle --platform browser --output out/monteCarlo.bundle.js monteCarloApp.tsx",
+			"command": "deno bundle --platform browser --output out/monteCarlo.bundle.js monteCarloApp.tsx && deno bundle --platform browser --output out/monteCarlo.worker.js monteCarloWorker.ts",
 			"problemMatcher": [
 				"$tsc"
 			],
@@ -12,14 +12,6 @@
 				"kind": "build",
 				"isDefault": true
 			}
-		},
-		{
-			"label": "Bundle with scriptmap",
-			"type": "shell",
-			"command": "deno_bundle monteCarloApp.tsx out/monteCarlo.bundle.js",
-			"problemMatcher": [
-				"$tsc"
-			]
 		},
 		{
 			"label": "Build drawdown_rust",

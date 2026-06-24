@@ -78,6 +78,8 @@ export enum SimulationState {
     Analyzing = "Analyzing results"
 }
 
+export type SimulationStatus = SimulationState | string;
+
 export class MonteCarlo {
     constructor() {
 
@@ -87,9 +89,9 @@ export class MonteCarlo {
     }
     historicalData?: HistoricalMarketData[];
 
-    onSimulationStateChange?: (event: SimulationState) => void;
+    onSimulationStateChange?: (event: SimulationStatus) => void;
 
-    updateSimulationState(newState: SimulationState) {
+    updateSimulationState(newState: SimulationStatus) {
         if (this.onSimulationStateChange)
             this.onSimulationStateChange(newState);
     }
@@ -98,10 +100,10 @@ export class MonteCarlo {
         this.updateSimulationState(SimulationState.Initializing);
         //Lazy initialize historical data
         if (!this.historicalData) {
-            if ("Deno" in window) {
+            if ("Deno" in globalThis) {
                 this.historicalData = JSON.parse(await Deno.readTextFile("./data/historicalMarketData.json")) as HistoricalMarketData[];
             } else {
-                this.historicalData = (await ((await fetch("./data/historicalMarketData.json")).json())) as HistoricalMarketData[];
+                this.historicalData = (await ((await fetch(this.historicalDataUrl())).json())) as HistoricalMarketData[];
             }
         }
         //if (!this.historicalData) throw "Error initializing historical data";
@@ -149,6 +151,14 @@ export class MonteCarlo {
         return null;
     }
 
+    historicalDataUrl(): string {
+        if ("document" in globalThis) {
+            return "./data/historicalMarketData.json";
+        }
+
+        return "../data/historicalMarketData.json";
+    }
+
     /** Console log and/or swallow any errors */
     trace(msg: string) {
         try {
@@ -190,6 +200,10 @@ export class MonteCarlo {
 
         // Run 100k trials, 50 years per trial. 
         for (let trial = 0; trial < simulationConfig.simulationRounds; trial++) {
+            if (trial > 0 && trial % 1000 === 0) {
+                this.updateSimulationState(`Running trial ${trial}`);
+            }
+
             let withdrawal = initialWithdrawal;
             for (let year = 0; year < simulationConfig.simulationYears; year++) {
                 // Pick a random year to use its asset performance 
@@ -249,6 +263,8 @@ export class MonteCarlo {
         const results: StatResults = {};
 
         for (let year = 0; year < simulationConfig.simulationYears; year++) {
+            this.updateSimulationState(`Analyzing year ${year + 1} of ${simulationConfig.simulationYears}`);
+
             const resultsForYear = Object.values(simulation[year]);
             results[year] = {
                 ...this.computeStatSeries(
