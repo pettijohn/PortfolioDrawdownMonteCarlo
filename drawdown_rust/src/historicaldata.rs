@@ -1,6 +1,5 @@
-
 pub fn json_string() -> &'static str {
-  return r#"
+    return r#"
 [
   {
     "year": 1926,
@@ -634,5 +633,4 @@ pub fn json_string() -> &'static str {
   }
 ]
 "#;
-
 }

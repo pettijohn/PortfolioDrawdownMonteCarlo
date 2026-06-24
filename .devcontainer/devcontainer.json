@@ -17,7 +17,8 @@
     "vscode": {
       "extensions": [
         "denoland.vscode-deno",
-        "openai.chatgpt"
+        "openai.chatgpt",
+        "rust-lang.rust-analyzer"
       ],
       "settings": {
         "editor.formatOnSave": true,

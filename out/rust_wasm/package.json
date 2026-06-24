@@ -1,0 +1,15 @@
+{
+  "name": "drawdown_rust",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "montecarlo_bg.wasm",
+    "montecarlo.js",
+    "montecarlo.d.ts"
+  ],
+  "main": "montecarlo.js",
+  "types": "montecarlo.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

@@ -14580,6 +14580,11 @@ var Charts = class extends ae {
 };
 
 // monteCarloApp.tsx
+var SimulationRuntime = /* @__PURE__ */ function(SimulationRuntime2) {
+  SimulationRuntime2["TypeScript"] = "typescript";
+  SimulationRuntime2["RustWasm"] = "rustWasm";
+  return SimulationRuntime2;
+}(SimulationRuntime || {});
 var App = class extends ae {
   constructor(props) {
     super(props);
@@ -14592,11 +14597,13 @@ var App = class extends ae {
       simulationRounds: 1e3,
       simulationYears: 50,
       chartDollarMode: ChartDollarMode.Nominal,
+      runtime: SimulationRuntime.TypeScript,
       onChange: void 0
     };
     this.state = this.stateFromUrl(defaultState);
     this.handleAllocationChange = this.handleAllocationChange.bind(this);
     this.handleChartDollarModeChange = this.handleChartDollarModeChange.bind(this);
+    this.handleRuntimeChange = this.handleRuntimeChange.bind(this);
     this.handleWorkerMessage = this.handleWorkerMessage.bind(this);
     this.runSimulation = this.runSimulation.bind(this);
     this.updateUrlFromState = this.updateUrlFromState.bind(this);
@@ -14628,7 +14635,17 @@ var App = class extends ae {
       value: ChartDollarMode.Nominal
     }, "Real Dollars"), /* @__PURE__ */ me("option", {
       value: ChartDollarMode.InflationAdjusted
-    }, "Inflation-Adjusted (Today's Dollars)")), "\xA0", /* @__PURE__ */ me("button", {
+    }, "Inflation-Adjusted (Today's Dollars)")), "\xA0", /* @__PURE__ */ me("label", {
+      htmlFor: "runtime"
+    }, "Runtime: "), /* @__PURE__ */ me("select", {
+      id: "runtime",
+      value: this.state.runtime,
+      onChange: this.handleRuntimeChange
+    }, /* @__PURE__ */ me("option", {
+      value: SimulationRuntime.TypeScript
+    }, "TypeScript"), /* @__PURE__ */ me("option", {
+      value: SimulationRuntime.RustWasm
+    }, "Rust (WASM)")), "\xA0", /* @__PURE__ */ me("button", {
       id: "run",
       onClick: this.runSimulation
     }, "Run Simulation"), this.state.simulationState, charts);
@@ -14636,6 +14653,11 @@ var App = class extends ae {
   handleChartDollarModeChange(event) {
     this.setState({
       chartDollarMode: event.target.value
+    }, this.updateUrlFromState);
+  }
+  handleRuntimeChange(event) {
+    this.setState({
+      runtime: event.target.value
     }, this.updateUrlFromState);
   }
   async runSimulation(_event) {
@@ -14651,7 +14673,7 @@ var App = class extends ae {
     };
     this.simulationWorker?.terminate();
     const requestId = ++this.simulationRequestId;
-    const worker = new Worker("./out/monteCarlo.worker.js", {
+    const worker = new Worker(this.workerUrl(), {
       type: "module"
     });
     this.simulationWorker = worker;
@@ -14676,6 +14698,12 @@ var App = class extends ae {
       config: inputs
     };
     worker.postMessage(message);
+  }
+  workerUrl() {
+    if (this.state.runtime === SimulationRuntime.RustWasm) {
+      return "./out/rustMonteCarloWorker.js";
+    }
+    return "./out/monteCarlo.worker.js";
   }
   handleWorkerMessage(event) {
     const message = event.data;
@@ -14803,6 +14831,10 @@ var App = class extends ae {
     if (chartDollarMode === ChartDollarMode.Nominal || chartDollarMode === ChartDollarMode.InflationAdjusted) {
       state.chartDollarMode = chartDollarMode;
     }
+    const runtime = params.get("runtime");
+    if (runtime === SimulationRuntime.TypeScript || runtime === SimulationRuntime.RustWasm) {
+      state.runtime = runtime;
+    }
     return state;
   }
   updateUrlFromState() {
@@ -14815,6 +14847,7 @@ var App = class extends ae {
     url.searchParams.set("simulationRounds", String(this.state.simulationRounds));
     url.searchParams.set("simulationYears", String(this.state.simulationYears));
     url.searchParams.set("chartDollarMode", this.state.chartDollarMode);
+    url.searchParams.set("runtime", this.state.runtime);
     window.history.replaceState({}, "", url);
   }
 };

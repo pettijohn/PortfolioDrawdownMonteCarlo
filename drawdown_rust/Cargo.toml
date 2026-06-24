@@ -6,11 +6,18 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-flutter_rust_bridge = "1.54.1"
+flutter_rust_bridge = { version = "1.54.1", optional = true }
+getrandom = { version = "0.2.16", features = ["js"] }
 rand = "0.8.5"
 rayon = "1.6.0"
 serde = { version = "1.0.147", features = ["derive"] }
 serde_json = { version = "1.0.87", features = ["preserve_order", "float_roundtrip"] }
+serde-wasm-bindgen = "0.6.5"
+wasm-bindgen = "0.2.105"
+
+[features]
+default = []
+flutter_bridge = ["flutter_rust_bridge"]
 
 # Don't need this if following convention of file bin/main.rs
 #[[bin]]

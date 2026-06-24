@@ -12,7 +12,13 @@ import { ChartDollarMode, Charts } from "./charts.tsx";
 
 interface AppState extends AllocationProps {
   simulationState?: SimulationStatus,
-  chartDollarMode: ChartDollarMode
+  chartDollarMode: ChartDollarMode,
+  runtime: SimulationRuntime
+}
+
+enum SimulationRuntime {
+  TypeScript = "typescript",
+  RustWasm = "rustWasm"
 }
 
 class App extends React.Component<Record<never,never>, AppState> {
@@ -27,6 +33,7 @@ class App extends React.Component<Record<never,never>, AppState> {
       simulationRounds: 1000,
       simulationYears: 50,
       chartDollarMode: ChartDollarMode.Nominal,
+      runtime: SimulationRuntime.TypeScript,
       onChange: undefined
     };
     this.state = this.stateFromUrl(defaultState);
@@ -34,6 +41,7 @@ class App extends React.Component<Record<never,never>, AppState> {
     // This binding is necessary to make `this` work in the callback
     this.handleAllocationChange = this.handleAllocationChange.bind(this);
     this.handleChartDollarModeChange = this.handleChartDollarModeChange.bind(this);
+    this.handleRuntimeChange = this.handleRuntimeChange.bind(this);
     this.handleWorkerMessage = this.handleWorkerMessage.bind(this);
     this.runSimulation = this.runSimulation.bind(this);
     this.updateUrlFromState = this.updateUrlFromState.bind(this);
@@ -59,6 +67,11 @@ class App extends React.Component<Record<never,never>, AppState> {
         <option value={ChartDollarMode.Nominal}>Real Dollars</option>
         <option value={ChartDollarMode.InflationAdjusted}>Inflation-Adjusted (Today's Dollars)</option>
       </select>&nbsp;
+      <label htmlFor="runtime">Runtime: </label>
+      <select id="runtime" value={this.state.runtime} onChange={this.handleRuntimeChange}>
+        <option value={SimulationRuntime.TypeScript}>TypeScript</option>
+        <option value={SimulationRuntime.RustWasm}>Rust (WASM)</option>
+      </select>&nbsp;
       <button id="run" onClick={this.runSimulation}>Run Simulation</button>{this.state.simulationState}
       {charts}
     </div>
@@ -67,6 +80,10 @@ class App extends React.Component<Record<never,never>, AppState> {
 
   handleChartDollarModeChange(event: React.ChangeEvent<HTMLSelectElement>) {
     this.setState({ chartDollarMode: event.target.value as ChartDollarMode }, this.updateUrlFromState);
+  }
+
+  handleRuntimeChange(event: React.ChangeEvent<HTMLSelectElement>) {
+    this.setState({ runtime: event.target.value as SimulationRuntime }, this.updateUrlFromState);
   }
 
   async runSimulation(_event: React.MouseEvent<HTMLButtonElement>) {
@@ -84,7 +101,7 @@ class App extends React.Component<Record<never,never>, AppState> {
     this.simulationWorker?.terminate();
 
     const requestId = ++this.simulationRequestId;
-    const worker = new Worker("./out/monteCarlo.worker.js", { type: "module" });
+    const worker = new Worker(this.workerUrl(), { type: "module" });
     this.simulationWorker = worker;
     worker.onmessage = this.handleWorkerMessage;
     worker.onerror = (error) => {
@@ -106,6 +123,14 @@ class App extends React.Component<Record<never,never>, AppState> {
       config: inputs
     };
     worker.postMessage(message);
+  }
+
+  workerUrl(): string {
+    if (this.state.runtime === SimulationRuntime.RustWasm) {
+      return "./out/rustMonteCarloWorker.js";
+    }
+
+    return "./out/monteCarlo.worker.js";
   }
 
   handleWorkerMessage(event: MessageEvent<SimulationWorkerMessage>) {
@@ -249,6 +274,14 @@ class App extends React.Component<Record<never,never>, AppState> {
       state.chartDollarMode = chartDollarMode;
     }
 
+    const runtime = params.get("runtime");
+    if (
+      runtime === SimulationRuntime.TypeScript ||
+      runtime === SimulationRuntime.RustWasm
+    ) {
+      state.runtime = runtime;
+    }
+
     return state;
   }
 
@@ -262,6 +295,7 @@ class App extends React.Component<Record<never,never>, AppState> {
     url.searchParams.set("simulationRounds", String(this.state.simulationRounds));
     url.searchParams.set("simulationYears", String(this.state.simulationYears));
     url.searchParams.set("chartDollarMode", this.state.chartDollarMode);
+    url.searchParams.set("runtime", this.state.runtime);
 
     window.history.replaceState({}, "", url);
   }

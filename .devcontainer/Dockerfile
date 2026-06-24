@@ -8,6 +8,7 @@ ARG USERNAME=vscode
 ARG USER_UID=1000
 ARG USER_GID=1000
 ARG DENO_VERSION=2.8.3
+ARG RUST_TOOLCHAIN=stable
 
 # Install a small baseline toolset for an interactive development container.
 # We also generate a UTF-8 locale up front so shells and editors behave
@@ -102,8 +103,14 @@ ENV LC_ALL=en_US.UTF-8
 USER ${USERNAME}
 
 
+# Install Rust and WASM tooling as the unprivileged dev user.
+RUN curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain "${RUST_TOOLCHAIN}" \
+    && /home/${USERNAME}/.cargo/bin/rustup target add wasm32-unknown-unknown \
+    && /home/${USERNAME}/.cargo/bin/rustup component add rustfmt \
+    && /home/${USERNAME}/.cargo/bin/cargo install wasm-pack --locked
+
 # Install bun runtime and the pi.dev CLI as the unprivileged dev user.
 RUN curl -fsSL https://bun.sh/install | bash \
     && /home/${USERNAME}/.bun/bin/bun install -g --ignore-scripts @earendil-works/pi-coding-agent
 
-ENV PATH=/home/${USERNAME}/.bun/bin:${PATH}
+ENV PATH=/home/${USERNAME}/.cargo/bin:/home/${USERNAME}/.bun/bin:${PATH}

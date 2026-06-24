@@ -4,7 +4,7 @@
 		{
 			"label": "Bundle",
 			"type": "shell",
-			"command": "deno bundle --platform browser --output out/monteCarlo.bundle.js monteCarloApp.tsx && deno bundle --platform browser --output out/monteCarlo.worker.js monteCarloWorker.ts",
+			"command": "cd drawdown_rust && wasm-pack build --target web --out-dir ../out/rust_wasm && cd .. && rm -f out/rust_wasm/.gitignore && deno bundle --platform browser --output out/monteCarlo.bundle.js monteCarloApp.tsx && deno bundle --platform browser --output out/monteCarlo.worker.js monteCarloWorker.ts && deno bundle --platform browser --output out/rustMonteCarloWorker.js rustMonteCarloWorker.ts && deno bundle --platform browser --output out/rustMonteCarloShardWorker.js rustMonteCarloShardWorker.ts && deno bundle --platform browser --output out/rustMonteCarloAnalysisWorker.js rustMonteCarloAnalysisWorker.ts",
 			"problemMatcher": [
 				"$tsc"
 			],
