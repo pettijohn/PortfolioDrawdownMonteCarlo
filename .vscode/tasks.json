@@ -4,10 +4,14 @@
 		{
 			"label": "Bundle",
 			"type": "shell",
-			"command": "deno bundle monteCarloApp.tsx out/monteCarlo.bundle.js",
+			"command": "deno bundle --platform browser --output out/monteCarlo.bundle.js monteCarloApp.tsx",
 			"problemMatcher": [
 				"$tsc"
-			]
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
 		},
 		{
 			"label": "Bundle with scriptmap",
@@ -45,10 +49,8 @@
 			"options": {
 				"cwd": "${workspaceFolder}/drawdown_dotnet"
 			},
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			}
-		},
+			"group": "build",
+			"problemMatcher": []
+		}
 	]
 }

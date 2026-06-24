@@ -1,16 +1,17 @@
 // Shouldn't need below on every .tsx file - https://github.com/denoland/deno/issues/13389
 
-import React from "https://esm.sh/react@17.0.2?pin=v74";
-import ReactDOM from "https://esm.sh/react-dom@17.0.2?pin=v74";
+import * as React from "https://esm.sh/react@17.0.2?pin=v74";
+import * as ReactDOM from "https://esm.sh/react-dom@17.0.2?pin=v74";
 
 
 import { Allocation, AllocationProps } from "./allocation.tsx";
-import { MonteCarloInputs, MonteCarlo, StatResultsAll, SimulationState } from "./monteCarlo.ts";
-import { Charts } from "./charts.tsx";
+import { SimulationConfig, MonteCarlo, SimulationState } from "./monteCarlo.ts";
+import { ChartDollarMode, Charts } from "./charts.tsx";
 
 
 interface AppState extends AllocationProps {
-  simulationState?: SimulationState
+  simulationState?: SimulationState,
+  chartDollarMode: ChartDollarMode
 }
 
 class App extends React.Component<Record<never,never>, AppState> {
@@ -24,13 +25,14 @@ class App extends React.Component<Record<never,never>, AppState> {
       drawdownRate: 4,
       simulationRounds: 1000,
       simulationYears: 50,
+      chartDollarMode: ChartDollarMode.Nominal,
       onChange: undefined
     };
     const STORAGE_KEY = "savedState";
     const savedState = window.localStorage.getItem(STORAGE_KEY);
     if (savedState) {
       try {
-        this.state = JSON.parse(savedState) as AllocationProps;
+        this.state = { ...defaultState, ...JSON.parse(savedState) } as AppState;
       } catch (error) {
         window.localStorage.removeItem(STORAGE_KEY)
         this.state = defaultState;
@@ -39,9 +41,10 @@ class App extends React.Component<Record<never,never>, AppState> {
     else {
       this.state = defaultState;
     }
-    
+
     // This binding is necessary to make `this` work in the callback
     this.handleAllocationChange = this.handleAllocationChange.bind(this);
+    this.handleChartDollarModeChange = this.handleChartDollarModeChange.bind(this);
     this.runSimulation = this.runSimulation.bind(this);
     this.simulationStateChanged = this.simulationStateChanged.bind(this);
 
@@ -57,36 +60,46 @@ class App extends React.Component<Record<never,never>, AppState> {
     this.setState({ simulationState: state });
   }
 
-  render() {
+  override render() {
     let charts;
     if (this.state.simulationResults)
-      charts = <Charts results={this.state.simulationResults} />
+      charts = <Charts results={this.state.simulationResults} dollarMode={this.state.chartDollarMode} />
 
-    
+
     return (
     <div>
       <Allocation stocksPercent={this.state.stocksPercent} bondsPercent={this.state.bondsPercent} cashPercent={this.state.cashPercent}
           startingBalance={this.state.startingBalance} drawdownRate={this.state.drawdownRate} simulationRounds={this.state.simulationRounds}
           simulationYears={this.state.simulationYears} onChange={this.handleAllocationChange}
       />
+      <label htmlFor="chartDollarMode">Show chart in </label>
+      <select id="chartDollarMode" value={this.state.chartDollarMode} onChange={this.handleChartDollarModeChange}>
+        <option value={ChartDollarMode.Nominal}>Real Dollars</option>
+        <option value={ChartDollarMode.InflationAdjusted}>Inflation-Adjusted (Today's Dollars)</option>
+      </select>&nbsp;
       <button id="run" onClick={this.runSimulation}>Run Simulation</button>{this.state.simulationState}
       {charts}
     </div>
   )
   }
-  
-  async runSimulation(event: React.MouseEvent<HTMLButtonElement>) {
-    const inputs: MonteCarloInputs = {
+
+  handleChartDollarModeChange(event: React.ChangeEvent<HTMLSelectElement>) {
+    this.setState({ chartDollarMode: event.target.value as ChartDollarMode });
+  }
+
+  async runSimulation(_event: React.MouseEvent<HTMLButtonElement>) {
+    const inputs: SimulationConfig = {
       savings: this.state.startingBalance,
       withdrawalRate: this.state.drawdownRate / 100,
       bonds: this.state.bondsPercent / 100,
       stocks: this.state.stocksPercent / 100,
       cash: this.state.cashPercent / 100,
       simulationRounds: this.state.simulationRounds,
-      simulationYears: this.state.simulationYears
+      simulationYears: this.state.simulationYears,
+      quantiles: 4
     };
 
-    const results = await this.MonteCarloSimulation.runMonteCarlo(inputs, 4);
+    const results = await this.MonteCarloSimulation.computeSimulation(inputs);
     if (results)
       this.setState({ simulationResults: results });
     // this.MonteCarloSimulation.runMonteCarlo(inputs, 4).then(results => {
@@ -119,7 +132,7 @@ class App extends React.Component<Record<never,never>, AppState> {
                 cashPercent: cashBalance
             };
         }
-        else if (cash != null) { 
+        else if (cash != null) {
             // Only update bonds, unless there's not room, then update stocks too
             let bondBalance = 100 - state.stocksPercent - cash;
             if (bondBalance < 0) bondBalance = 0;
@@ -138,7 +151,7 @@ class App extends React.Component<Record<never,never>, AppState> {
       //console.log(event.target.value);
       const value = parseFloat(event.target.value);
       const key = event.target.id as keyof AllocationProps;
-          
+
       // This is a weird typescript validation issue that it can't validate them all at once
       switch (key) {
           case "startingBalance":

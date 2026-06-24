@@ -1,0 +1,26 @@
+{
+  "version": "5",
+  "redirects": {
+    "https://esm.sh/@types/react-dom@~17.0.26/index.d.ts": "https://esm.sh/@types/react-dom@17.0.26/index.d.ts",
+    "https://esm.sh/@types/react@~17.0.83/index.d.ts": "https://esm.sh/@types/react@17.0.93/index.d.ts",
+    "https://esm.sh/@types/react@~17.0.90/index.d.ts": "https://esm.sh/@types/react@17.0.93/index.d.ts",
+    "https://esm.sh/chart.js@^3.5.0?target=denonext": "https://esm.sh/chart.js@3.9.1?target=denonext",
+    "https://esm.sh/react@^16.8.0%20||%20^17.0.0?target=denonext": "https://esm.sh/react@17.0.2?target=denonext",
+    "https://esm.sh/react@^17.0.2?target=denonext": "https://esm.sh/react@17.0.2?target=denonext",
+    "https://esm.sh/scheduler@^0.20.2?target=denonext": "https://esm.sh/scheduler@0.20.2?target=denonext"
+  },
+  "remote": {
+    "https://esm.sh/chart.js@3.9.1/denonext/chart.mjs": "300b7279ad4fba4928addb13215842d1e34f17ba1b95f9f5cd9310737a50d3bd",
+    "https://esm.sh/chart.js@3.9.1?pin=v74": "2de5c5ff11987f42a29bae08b5516dc088a01ebc1ccc3034d6c7b58b8f7ae9bd",
+    "https://esm.sh/chart.js@3.9.1?target=denonext": "2de5c5ff11987f42a29bae08b5516dc088a01ebc1ccc3034d6c7b58b8f7ae9bd",
+    "https://esm.sh/react-chartjs-2@4.0.1/denonext/react-chartjs-2.mjs": "5533b6706883df2d14561452c14e63aa94cb911decd9f02476ca1e0082ca70fd",
+    "https://esm.sh/react-chartjs-2@4.0.1?pin=v74": "e8b8de41643048f38d005df7962e6d1b7b99e70f1a90073ebfd784be710ed274",
+    "https://esm.sh/react-dom@17.0.2/denonext/react-dom.mjs": "99463cb3fb0d6ae837156f663d78972f0384b2c7d2ae5d3e86de862166e22c82",
+    "https://esm.sh/react-dom@17.0.2?pin=v74": "5a60124a7ce3a5bd535b450cd168947c46d85b968bc04aed8f3cb3ab290f8e13",
+    "https://esm.sh/react@17.0.2/denonext/react.mjs": "e9aac02ed1447f21381f3f075927259b041f963e912038c8e08ade86f3f4e2aa",
+    "https://esm.sh/react@17.0.2?pin=v74": "d98cee3a0958fa7400920506304472ba6f1a1612dfeedf6addda3ff6072ffa2d",
+    "https://esm.sh/react@17.0.2?target=denonext": "d98cee3a0958fa7400920506304472ba6f1a1612dfeedf6addda3ff6072ffa2d",
+    "https://esm.sh/scheduler@0.20.2/denonext/scheduler.mjs": "16f35f0720a0e59b45f1fd766a9fa385ade600bbb469006d0999a37660638f1e",
+    "https://esm.sh/scheduler@0.20.2?target=denonext": "774886b429a7b3dbc250967d49cbc4c9d658f95ef2eb1360b08225d2f702ce38"
+  }
+}

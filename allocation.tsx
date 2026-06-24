@@ -1,9 +1,6 @@
-import React from "https://esm.sh/react@17.0.2?pin=v74";
-import ReactDOM from "https://esm.sh/react-dom@17.0.2?pin=v74";
-import { Chart as ChartJS, ChartData, CategoryScale, LinearScale, registerables } from "https://esm.sh/chart.js@3.7.1?pin=v74";
-import { Chart } from "https://esm.sh/react-chartjs-2@4.0.1?pin=v74";
+import * as React from "https://esm.sh/react@17.0.2?pin=v74";
 
-import { StatResultsAll } from "./monteCarlo.ts";
+import { StatResults } from "./monteCarlo.ts";
 
 export interface AllocationProps {
     startingBalance: number;
@@ -14,24 +11,24 @@ export interface AllocationProps {
     simulationRounds: number;
     simulationYears: number;
     onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
-    simulationResults?: StatResultsAll
+    simulationResults?: StatResults
 }
 
 export class Allocation extends React.Component<AllocationProps> {
     constructor(props: AllocationProps) {
         super(props);
-        
+
         //this.handleSubmit = this.handleSubmit.bind(this);
-    
+
         this.formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0, });
 
-    
+
     }
     readonly formatter: Intl.NumberFormat;
-    
-    render() {
+
+    override render() {
         return (
-            <div><h2>Portfolio Allocation</h2>
+            <div><h1>Portfolio Drawdown Monte Carlo Simulation</h1><h2>Portfolio Allocation</h2>
                 <ul>
                     <li><label htmlFor="startingBalance" className="slider">Total starting balance USD:</label>
                         <input className="slider" type="range" min="100000" max="20000000" step="100000" id="startingBalance" value={this.props.startingBalance} onChange={this.props.onChange} />
@@ -61,5 +58,5 @@ export class Allocation extends React.Component<AllocationProps> {
     }
 
 
-    
+
 }

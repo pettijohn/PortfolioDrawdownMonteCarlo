@@ -1,14 +1,19 @@
-import React from "https://esm.sh/react@17.0.2?pin=v74";
-import ReactDOM from "https://esm.sh/react-dom@17.0.2?pin=v74";
-import { Chart as ChartJS, ChartData, CategoryScale, LinearScale, registerables } from "https://esm.sh/chart.js@3.7.1?pin=v74";
-import { Chart, Bar, Line } from "https://esm.sh/react-chartjs-2@4.0.1?pin=v74";
+import * as React from "https://esm.sh/react@17.0.2?pin=v74";
+import { Chart as ChartJS, ChartData, ChartOptions, CategoryScale, LinearScale, registerables } from "https://esm.sh/chart.js@3.9.1?pin=v74";
+import { Chart } from "https://esm.sh/react-chartjs-2@4.0.1?pin=v74";
 
-import { StatResultsAll } from "./monteCarlo.ts";
+import { StatResults, StatSingleYear } from "./monteCarlo.ts";
 
 ChartJS.register(...registerables, CategoryScale, LinearScale );
 
 export interface ChartsProps {
-    results: StatResultsAll
+    results: StatResults,
+    dollarMode: ChartDollarMode
+}
+
+export enum ChartDollarMode {
+    Nominal = "nominal",
+    InflationAdjusted = "inflationAdjusted"
 }
 
 export class Charts extends React.Component<ChartsProps> {
@@ -17,7 +22,7 @@ export class Charts extends React.Component<ChartsProps> {
 
     }
 
-    render() {
+    override render() {
         // const data: ChartData = {
         //     labels: ["Red", "Blue", "Yellow", "Green", "Purple", "Orange"],
         //     datasets: [
@@ -34,74 +39,91 @@ export class Charts extends React.Component<ChartsProps> {
         //         ]
         //   };
         
-        const data = this.chartData(this.props.results);
+        const data = this.chartData(this.props.results, this.props.dollarMode);
+        const ruinData = this.ruinProbabilityChartData(this.props.results);
+        const ruinOptions = this.ruinProbabilityChartOptions();
         
         return (
-            <Chart type="line" data={data} />
+            <div>
+                <Chart type="line" data={data} />
+                <Chart type="line" data={ruinData} options={ruinOptions} />
+            </div>
         )
     }
     
-    chartData(simulationStats: StatResultsAll): ChartData<"line", (number)[], unknown> {
+    chartData(simulationStats: StatResults, dollarMode: ChartDollarMode): ChartData<"line", (number)[], unknown> {
+        const stats = Object.values(simulationStats).map(s => this.selectStats(s, dollarMode));
+
         return {
             labels: Object.keys(simulationStats),
-            datasets: [{ // 0
-                label: "min",
-                backgroundColor: 'rgba(255, 0, 255, 0.5)',
+            datasets: [{
+                label: "P10",
+                backgroundColor: 'rgba(255, 99, 132, 0.5)',
                 borderColor: 'rgb(255, 99, 132)',
-                data: Object.values(simulationStats).map(s => s.min),
-                //fill: '+1', 
+                data: stats.map(s => s.p10),
             },
-            // { // 1
-            //     label: "max",
-            //     // backgroundColor: 'rgb(255, 255, 132)',
-            //     // borderColor: 'rgb(255, 255, 132)',
-            //     data: Object.values(simulationStats).map(s => s.max),
-            // },
             { 
-                label: "mean",
-                backgroundColor: 'rgb(0, 255, 0)',
+                label: "P25",
+                backgroundColor: 'rgba(255, 159, 64, 0.5)',
+                borderColor: 'rgb(255, 159, 64)',
+                data: stats.map(s => s.p25),
+            },
+            { 
+                label: "Median",
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
                 borderColor: 'rgb(0, 0, 0)',
-                data: Object.values(simulationStats).map(s => s.mean),
-            },
-            // { 
-            //     label: "median",
-            //     backgroundColor: 'rgb(0, 255, 0)',
-            //     borderColor: 'rgb(255, 255, 132)',
-            //     data: Object.values(simulationStats).map(s => s.median),
-            // },
-            { 
-                label: "stddev_low",
-                backgroundColor: 'rgb(255, 255, 132)',
-                borderColor: 'rgb(255, 255, 132)',
-                data: Object.values(simulationStats).map(s => s.mean - s.stddev),
-                //fill: '+1'
+                data: stats.map(s => s.median),
             },
             { 
-                label: "stddev_high",
-                backgroundColor: 'rgb(255, 255, 132)',
-                borderColor: 'rgb(255, 255, 132)',
-                data: Object.values(simulationStats).map(s => s.mean + s.stddev),
+                label: "Mean",
+                backgroundColor: 'rgba(0, 200, 0, 0.5)',
+                borderColor: 'rgb(0, 160, 0)',
+                data: stats.map(s => s.mean),
             },
             { 
-                label: "q0",
-                backgroundColor: 'rgb(0, 0, 0)',
-                borderColor: 'rgb(255, 0, 0)',
-                data: Object.values(simulationStats).map(s => s.quantiles[0]),
+                label: "P75",
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgb(54, 162, 235)',
+                data: stats.map(s => s.p75),
             },
             { 
-                label: "q1",
-                backgroundColor: 'rgb(0, 0, 0)',
-                borderColor: 'rgb(255, 0, 0)',
-                data: Object.values(simulationStats).map(s => s.quantiles[1]),
-            },
-            { 
-                label: "q2",
-                backgroundColor: 'rgb(0, 0, 0)',
-                borderColor: 'rgb(255, 0, 0)',
-                data: Object.values(simulationStats).map(s => s.quantiles[2]),
+                label: "P90",
+                backgroundColor: 'rgba(153, 102, 255, 0.5)',
+                borderColor: 'rgb(153, 102, 255)',
+                data: stats.map(s => s.p90),
             },
         ]
     };
 }
+
+    ruinProbabilityChartData(simulationStats: StatResults): ChartData<"line", (number)[], unknown> {
+        return {
+            labels: Object.keys(simulationStats),
+            datasets: [{
+                label: "Probability of ruin (%)",
+                backgroundColor: 'rgba(220, 0, 0, 0.5)',
+                borderColor: 'rgb(220, 0, 0)',
+                data: Object.values(simulationStats).map(s => s.ruinProbability * 100),
+            }]
+        };
+    }
+
+    ruinProbabilityChartOptions(): ChartOptions<"line"> {
+        return {
+            scales: {
+                y: {
+                    min: 0,
+                    max: 100
+                }
+            }
+        };
+    }
+
+    selectStats(stat: StatSingleYear, dollarMode: ChartDollarMode) {
+        if (dollarMode === ChartDollarMode.InflationAdjusted) {
+            return stat.inflationAdjusted;
+        }
+        return stat;
+    }
 
 }
