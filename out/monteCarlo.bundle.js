@@ -14584,6 +14584,7 @@ var SimulationRuntime = /* @__PURE__ */ function(SimulationRuntime2) {
   SimulationRuntime2["TypeScript"] = "typescript";
   SimulationRuntime2["RustWasm"] = "rustWasm";
   SimulationRuntime2["DotNetWasm"] = "dotNetWasm";
+  SimulationRuntime2["GoWasm"] = "goWasm";
   return SimulationRuntime2;
 }(SimulationRuntime || {});
 var App = class extends ae {
@@ -14648,7 +14649,9 @@ var App = class extends ae {
       value: SimulationRuntime.RustWasm
     }, "Rust (WASM)"), /* @__PURE__ */ me("option", {
       value: SimulationRuntime.DotNetWasm
-    }, "C# (.NET WASM)")), "\xA0", /* @__PURE__ */ me("button", {
+    }, "C# (.NET WASM)"), /* @__PURE__ */ me("option", {
+      value: SimulationRuntime.GoWasm
+    }, "Go (WASM)")), "\xA0", /* @__PURE__ */ me("button", {
       id: "run",
       onClick: this.runSimulation
     }, "Run Simulation"), this.state.simulationState, charts);
@@ -14708,6 +14711,9 @@ var App = class extends ae {
     }
     if (this.state.runtime === SimulationRuntime.DotNetWasm) {
       return "./out/dotNetMonteCarloWorker.js";
+    }
+    if (this.state.runtime === SimulationRuntime.GoWasm) {
+      return "./out/goMonteCarloWorker.js";
     }
     return "./out/monteCarlo.worker.js";
   }
@@ -14838,7 +14844,7 @@ var App = class extends ae {
       state.chartDollarMode = chartDollarMode;
     }
     const runtime = params.get("runtime");
-    if (runtime === SimulationRuntime.TypeScript || runtime === SimulationRuntime.RustWasm || runtime === SimulationRuntime.DotNetWasm) {
+    if (runtime === SimulationRuntime.TypeScript || runtime === SimulationRuntime.RustWasm || runtime === SimulationRuntime.DotNetWasm || runtime === SimulationRuntime.GoWasm) {
       state.runtime = runtime;
     }
     return state;

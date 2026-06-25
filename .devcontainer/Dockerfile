@@ -21,6 +21,7 @@ RUN apt-get update \
         curl \
         dotnet-sdk-10.0 \
         git \
+        golang-go \
         less \
         locales \
         python-is-python3 \
