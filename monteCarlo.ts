@@ -45,6 +45,13 @@ type SingleYear = {
 /** A 2D array where each year has 100k trials */
 type Simulation = { [simYear: number]: { [trialNum: number]: SingleYear } };
 
+export type SimulationShard = {
+    nominalByYear: number[][];
+    adjustedByYear: number[][];
+    shortfallByYear: number[][];
+    exhaustedByYear: boolean[][];
+};
+
 
 /** A collection of all of the statistics  */
 export type StatResults = { [simYear: number]: StatSingleYear };
@@ -98,16 +105,65 @@ export class MonteCarlo {
 
     async computeSimulation(simulationConfig: SimulationConfig): Promise<StatResults | null> {
         this.updateSimulationState(SimulationState.Initializing);
-        //Lazy initialize historical data
-        if (!this.historicalData) {
-            if ("Deno" in globalThis) {
-                this.historicalData = JSON.parse(await Deno.readTextFile("./data/historicalMarketData.json")) as HistoricalMarketData[];
-            } else {
-                this.historicalData = (await ((await fetch(this.historicalDataUrl())).json())) as HistoricalMarketData[];
-            }
-        }
+        await this.initializeHistoricalData();
         //if (!this.historicalData) throw "Error initializing historical data";
         
+        const error = this.validateAndNormalizeConfig(simulationConfig);
+
+        if (error === undefined) {
+            const historicalData = this.historicalData;
+            if (!historicalData) throw new Error("Error initializing historical data");
+
+            this.updateSimulationState(SimulationState.Running);
+            const trials = this.simulateDrawdown(simulationConfig, historicalData);
+            
+            this.updateSimulationState(SimulationState.Analyzing);
+            this.trace("Simulation complete, computing stats.");
+            const simulationStats = this.computeStats(simulationConfig, trials);
+            //console.log(JSON.stringify(deciles));
+
+            this.updateSimulationState(SimulationState.Stopped);
+            return simulationStats;
+        }
+        else {
+            this.trace("SIMULATION FAILED");
+            this.trace(error);
+        }
+        return null;
+    }
+
+    async computeSimulationShard(
+        simulationConfig: SimulationConfig,
+        simulationRounds: number,
+    ): Promise<SimulationShard> {
+        this.updateSimulationState(SimulationState.Initializing);
+        await this.initializeHistoricalData();
+
+        const shardConfig = { ...simulationConfig, simulationRounds };
+        const error = this.validateAndNormalizeConfig(shardConfig);
+        if (error !== undefined) {
+            throw new Error(error);
+        }
+        const historicalData = this.historicalData;
+        if (!historicalData) throw new Error("Error initializing historical data");
+
+        this.updateSimulationState(SimulationState.Running);
+        return this.simulateDrawdownShard(shardConfig, historicalData);
+    }
+
+    async initializeHistoricalData() {
+        if (this.historicalData) {
+            return;
+        }
+
+        if ("Deno" in globalThis) {
+            this.historicalData = JSON.parse(await Deno.readTextFile("./data/historicalMarketData.json")) as HistoricalMarketData[];
+        } else {
+            this.historicalData = (await ((await fetch(this.historicalDataUrl())).json())) as HistoricalMarketData[];
+        }
+    }
+
+    validateAndNormalizeConfig(simulationConfig: SimulationConfig): string | undefined {
         let total: number;
         let error: string | undefined;
 
@@ -132,23 +188,7 @@ export class MonteCarlo {
             }
         }
 
-        if (error === undefined) {
-            this.updateSimulationState(SimulationState.Running);
-            const trials = this.simulateDrawdown(simulationConfig, this.historicalData);
-            
-            this.updateSimulationState(SimulationState.Analyzing);
-            this.trace("Simulation complete, computing stats.");
-            const simulationStats = this.computeStats(simulationConfig, trials);
-            //console.log(JSON.stringify(deciles));
-
-            this.updateSimulationState(SimulationState.Stopped);
-            return simulationStats;
-        }
-        else {
-            this.trace("SIMULATION FAILED");
-            this.trace(error);
-        }
-        return null;
+        return error;
     }
 
     historicalDataUrl(): string {
@@ -251,6 +291,29 @@ export class MonteCarlo {
         }
 
         return trials;
+    }
+
+    simulateDrawdownShard(simulationConfig: SimulationConfig, historicalData: HistoricalMarketData[]): SimulationShard {
+        const trials = this.simulateDrawdown(simulationConfig, historicalData);
+        const nominalByYear: number[][] = [];
+        const adjustedByYear: number[][] = [];
+        const shortfallByYear: number[][] = [];
+        const exhaustedByYear: boolean[][] = [];
+
+        for (let year = 0; year < simulationConfig.simulationYears; year++) {
+            const resultsForYear = Object.values(trials[year]);
+            nominalByYear[year] = resultsForYear.map(t => t.endingBalance);
+            adjustedByYear[year] = resultsForYear.map(t => t.endingBalanceTodaysDollars);
+            shortfallByYear[year] = resultsForYear.map(t => t.shortfall);
+            exhaustedByYear[year] = resultsForYear.map(t => t.isExhausted);
+        }
+
+        return {
+            nominalByYear,
+            adjustedByYear,
+            shortfallByYear,
+            exhaustedByYear,
+        };
     }
 
 

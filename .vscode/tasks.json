@@ -19,7 +19,7 @@
 		{
 			"label": "Build TypeScript",
 			"type": "shell",
-			"command": "mkdir -p out && deno bundle --platform browser --output out/monteCarlo.bundle.js monteCarloApp.tsx && deno bundle --platform browser --output out/monteCarlo.worker.js monteCarloWorker.ts && deno bundle --platform browser --output out/monteCarloAnalysisWorker.js monteCarloAnalysisWorker.ts",
+			"command": "mkdir -p out && deno bundle --platform browser --output out/monteCarlo.bundle.js monteCarloApp.tsx && deno bundle --platform browser --output out/monteCarlo.worker.js monteCarloWorker.ts && deno bundle --platform browser --output out/monteCarloShardWorker.js monteCarloShardWorker.ts && deno bundle --platform browser --output out/monteCarloAnalysisWorker.js monteCarloAnalysisWorker.ts",
 			"problemMatcher": [
 				"$tsc"
 			],
