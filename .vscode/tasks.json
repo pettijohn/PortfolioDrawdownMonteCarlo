@@ -3,46 +3,54 @@
 	"tasks": [
 		{
 			"label": "Bundle",
-			"type": "shell",
-			"command": "cd drawdown_rust && wasm-pack build --target web --out-dir ../out/rust_wasm && cd .. && rm -f out/rust_wasm/.gitignore && rm -rf out/dotnet_publish out/dotnet_wasm out/go_wasm && dotnet publish drawdown_dotnet/DrawdownDotNet.csproj -c Release -o out/dotnet_publish && cp -R out/dotnet_publish/wwwroot out/dotnet_wasm && mkdir -p out/go_wasm && cd drawdown_go && GOOS=js GOARCH=wasm go build -ldflags \"-s -w\" -o ../out/go_wasm/montecarlo.wasm && cd .. && cp \"$(go env GOROOT)/lib/wasm/wasm_exec.js\" out/go_wasm/wasm_exec.js && deno bundle --platform browser --output out/monteCarlo.bundle.js monteCarloApp.tsx && deno bundle --platform browser --output out/monteCarlo.worker.js monteCarloWorker.ts && deno bundle --platform browser --output out/rustMonteCarloWorker.js rustMonteCarloWorker.ts && deno bundle --platform browser --output out/rustMonteCarloShardWorker.js rustMonteCarloShardWorker.ts && deno bundle --platform browser --output out/monteCarloAnalysisWorker.js monteCarloAnalysisWorker.ts && deno bundle --platform browser --output out/dotNetMonteCarloWorker.js dotNetMonteCarloWorker.ts && deno bundle --platform browser --output out/dotNetMonteCarloShardWorker.js dotNetMonteCarloShardWorker.ts && deno bundle --platform browser --output out/goMonteCarloWorker.js goMonteCarloWorker.ts && deno bundle --platform browser --output out/goMonteCarloShardWorker.js goMonteCarloShardWorker.ts",
-			"problemMatcher": [
-				"$tsc"
+			"dependsOn": [
+				"Build TypeScript",
+				"Build Rust WASM",
+				"Build .NET WASM",
+				"Build Go WASM"
 			],
+			"dependsOrder": "sequence",
+			"problemMatcher": [],
 			"group": {
 				"kind": "build",
 				"isDefault": true
 			}
 		},
 		{
-			"label": "Build drawdown_rust",
+			"label": "Build TypeScript",
 			"type": "shell",
-			"command": "cargo build",
-			"options": {
-				"cwd": "${workspaceFolder}/drawdown_rust"
-			},
-			"group": {
-				"kind": "build"
-			}
+			"command": "mkdir -p out && deno bundle --platform browser --output out/monteCarlo.bundle.js monteCarloApp.tsx && deno bundle --platform browser --output out/monteCarlo.worker.js monteCarloWorker.ts && deno bundle --platform browser --output out/monteCarloAnalysisWorker.js monteCarloAnalysisWorker.ts",
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
 		},
 		{
-			"label": "Run drawdown_rust",
+			"label": "Build Rust WASM",
 			"type": "shell",
-			"command": "cargo run",
-			"dependsOn": "Build drawdown_rust",
-			"options": {
-				"cwd": "${workspaceFolder}/drawdown_rust"
-			},
-			"problemMatcher": []
+			"command": "cd drawdown_rust && wasm-pack build --target web --out-dir ../out/rust_wasm && cd .. && rm -f out/rust_wasm/.gitignore && deno bundle --platform browser --output out/rustMonteCarloWorker.js rustMonteCarloWorker.ts && deno bundle --platform browser --output out/rustMonteCarloShardWorker.js rustMonteCarloShardWorker.ts",
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
 		},
 		{
-			"label": "Build drawdown_dotnet",
+			"label": "Build .NET WASM",
 			"type": "shell",
-			"command": "rm -rf ../out/dotnet_publish ../out/dotnet_wasm && dotnet publish -c Release -o ../out/dotnet_publish && cp -R ../out/dotnet_publish/wwwroot ../out/dotnet_wasm",
-			"options": {
-				"cwd": "${workspaceFolder}/drawdown_dotnet"
-			},
-			"group": "build",
-			"problemMatcher": []
+			"command": "rm -rf out/dotnet_publish out/dotnet_wasm && dotnet publish drawdown_dotnet/DrawdownDotNet.csproj -c Release -o out/dotnet_publish && cp -R out/dotnet_publish/wwwroot out/dotnet_wasm && deno bundle --platform browser --output out/dotNetMonteCarloWorker.js dotNetMonteCarloWorker.ts && deno bundle --platform browser --output out/dotNetMonteCarloShardWorker.js dotNetMonteCarloShardWorker.ts",
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build Go WASM",
+			"type": "shell",
+			"command": "rm -rf out/go_wasm && mkdir -p out/go_wasm && cd drawdown_go && GOOS=js GOARCH=wasm go build -ldflags \"-s -w\" -o ../out/go_wasm/montecarlo.wasm && cd .. && cp \"$(go env GOROOT)/lib/wasm/wasm_exec.js\" out/go_wasm/wasm_exec.js && deno bundle --platform browser --output out/goMonteCarloWorker.js goMonteCarloWorker.ts && deno bundle --platform browser --output out/goMonteCarloShardWorker.js goMonteCarloShardWorker.ts",
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
 		}
 	]
 }
