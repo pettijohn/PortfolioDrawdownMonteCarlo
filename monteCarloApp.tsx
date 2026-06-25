@@ -18,7 +18,8 @@ interface AppState extends AllocationProps {
 
 enum SimulationRuntime {
   TypeScript = "typescript",
-  RustWasm = "rustWasm"
+  RustWasm = "rustWasm",
+  DotNetWasm = "dotNetWasm"
 }
 
 class App extends React.Component<Record<never,never>, AppState> {
@@ -71,6 +72,7 @@ class App extends React.Component<Record<never,never>, AppState> {
       <select id="runtime" value={this.state.runtime} onChange={this.handleRuntimeChange}>
         <option value={SimulationRuntime.TypeScript}>TypeScript</option>
         <option value={SimulationRuntime.RustWasm}>Rust (WASM)</option>
+        <option value={SimulationRuntime.DotNetWasm}>C# (.NET WASM)</option>
       </select>&nbsp;
       <button id="run" onClick={this.runSimulation}>Run Simulation</button>{this.state.simulationState}
       {charts}
@@ -128,6 +130,9 @@ class App extends React.Component<Record<never,never>, AppState> {
   workerUrl(): string {
     if (this.state.runtime === SimulationRuntime.RustWasm) {
       return "./out/rustMonteCarloWorker.js";
+    }
+    if (this.state.runtime === SimulationRuntime.DotNetWasm) {
+      return "./out/dotNetMonteCarloWorker.js";
     }
 
     return "./out/monteCarlo.worker.js";
@@ -277,7 +282,8 @@ class App extends React.Component<Record<never,never>, AppState> {
     const runtime = params.get("runtime");
     if (
       runtime === SimulationRuntime.TypeScript ||
-      runtime === SimulationRuntime.RustWasm
+      runtime === SimulationRuntime.RustWasm ||
+      runtime === SimulationRuntime.DotNetWasm
     ) {
       state.runtime = runtime;
     }

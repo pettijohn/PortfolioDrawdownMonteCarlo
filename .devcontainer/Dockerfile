@@ -19,14 +19,25 @@ RUN apt-get update \
         build-essential \
         ca-certificates \
         curl \
+        dotnet-sdk-10.0 \
         git \
         less \
         locales \
+        python-is-python3 \
+        python3 \
         sudo \
         unzip \
         wget \
     && locale-gen en_US.UTF-8 \
     && update-locale LANG=en_US.UTF-8 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN dotnet workload install wasm-tools wasm-experimental
+
+RUN curl -fsSLo /tmp/google-chrome-stable_current_amd64.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends /tmp/google-chrome-stable_current_amd64.deb \
+    && rm -f /tmp/google-chrome-stable_current_amd64.deb \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Deno directly from the official release artifacts. The VS Code build

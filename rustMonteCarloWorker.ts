@@ -220,7 +220,7 @@ function runAnalysisPool(
         }
 
         for (let workerIndex = 0; workerIndex < workerCount; workerIndex++) {
-            const worker = new Worker("./rustMonteCarloAnalysisWorker.js", { type: "module" });
+            const worker = new Worker("./monteCarloAnalysisWorker.js", { type: "module" });
             workers.push(worker);
             activeWorkers++;
 

@@ -1,266 +1,198 @@
-
-
-using System.Collections.Generic;
+using System.Reflection;
+using System.Runtime.InteropServices.JavaScript;
 using System.Text.Json;
-using System.Linq;
-using System.Diagnostics.CodeAnalysis;
-using System.Collections.Concurrent;
 using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
 
 namespace MonteCarloDrawdown;
-/*
-VOCABULARY
 
-* Single Year - result after applying growth/expenses/inflation a single time to a single year
-* Trial - a run of 50 single years, from a starting portfolio balance to 0 or infinity
-* Simulation - 100k trials 
-* StatSingleYear - after computing stats, the results of a single year slice (all 100k records from year-n processed down into consumable stats)
-* StatResults - All 50 years of StatSingleYears
+public sealed record HistoricalMarketData(
+    int Year,
+    double Stocks,
+    double Bonds,
+    double Cash,
+    double Cpi);
 
-*/
+public sealed record SimulationConfig(
+    double Savings,
+    double WithdrawalRate,
+    double Stocks,
+    double Bonds,
+    double Cash,
+    int SimulationRounds,
+    int SimulationYears,
+    int Quantiles);
 
-public class HistoricalMarketData
-{
-    [JsonConstructorAttribute]
-    public HistoricalMarketData() { }
-    public int year { get; set; }
-    //public int year;
-    public double stocks { get; set; }
-    //public double stocks;
-    public double bonds { get; set; }
-    //public double bonds;
-    public double cash { get; set; }
-    //public double cash;
-    public double cpi { get; set; }
-    //public double cpi;
-}
+public sealed record SimulationShard(
+    double[][] NominalByYear,
+    double[][] AdjustedByYear,
+    double[][] ShortfallByYear,
+    bool[][] ExhaustedByYear);
 
-[JsonSourceGenerationOptions(WriteIndented = true)]
-[JsonSerializable(typeof(HistoricalMarketData))]
+internal sealed record SingleYear(
+    double EndingBalance,
+    double EndingBalanceTodaysDollars,
+    double Shortfall,
+    bool IsExhausted);
+
+[JsonSourceGenerationOptions(
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+    PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(HistoricalMarketData[]))]
+[JsonSerializable(typeof(SimulationConfig))]
+[JsonSerializable(typeof(SimulationShard))]
+[JsonSerializable(typeof(int[]))]
 internal partial class SourceGenerationContext : JsonSerializerContext
 {
 }
 
-public class SimulationConfig
+public static partial class DotNetMonteCarloExports
 {
-    public double savings;
-    public double withdrawal_rate;
-    public double stocks;
-    public double bonds;
-    public double cash;
-    public int simulation_rounds;
-    public int simulation_years;
-    public int quantiles;
-}
+    private static HistoricalMarketData[]? historicalData;
 
-
-public class SingleYear
-{
-    public double starting_balance;
-    public double withdrawal;
-    public double ending_balance;
-    //growthRate: number;
-    public double cumulative_inflation;
-    public double ending_balance_todays_dollars;
-    public int year;
-}
-
-public class Trial
-{
-    public List<SingleYear> years;
-
-    public Trial() {
-        this.years = new List<SingleYear>();
-    }
-}
-
-public class Simulation {
-    public ConcurrentBag<Trial> trials;
-    public Simulation() {
-        this.trials = new ConcurrentBag<Trial>();
-    }
-}
-
-/** Results from a single year, the stats of the 100k simulations */
-public class StatsSingleYear {
-    public int year;
-    public double min;
-    public double max;
-    public double mean;
-    public double median;
-    public double stddev;
-    public List<double> quantiles;
-
-    public StatsSingleYear() {
-        this.quantiles = new List<double>();
-    }
-}
-
-public class StatResults {
-    public StatsSingleYear[]? years;
-}
-
-public class MonteCarlo {
-
-    public MonteCarlo() {}
-
-    public StatResults simulation(SimulationConfig simulation_config)
+    [JSExport]
+    public static string RunSimulationShardJson(string configJson, int simulationRounds)
     {
-        using (var reader = new StreamReader("../data/historicalMarketData.json"))
+        var config = JsonSerializer.Deserialize(configJson, SourceGenerationContext.Default.SimulationConfig)
+            ?? throw new InvalidOperationException("Missing simulation config.");
+
+        config = config with { SimulationRounds = simulationRounds };
+        var shard = RunSimulationShard(config);
+        return JsonSerializer.Serialize(shard, SourceGenerationContext.Default.SimulationShard);
+    }
+
+    [JSExport]
+    public static string RunDeterministicSimulationShardJson(
+        string configJson,
+        string historicalDataJson,
+        string yearIndexesJson)
+    {
+        var config = JsonSerializer.Deserialize(configJson, SourceGenerationContext.Default.SimulationConfig)
+            ?? throw new InvalidOperationException("Missing simulation config.");
+        var data = JsonSerializer.Deserialize(historicalDataJson, SourceGenerationContext.Default.HistoricalMarketDataArray)
+            ?? throw new InvalidOperationException("Missing historical data.");
+        var yearIndexes = JsonSerializer.Deserialize(yearIndexesJson, SourceGenerationContext.Default.Int32Array)
+            ?? throw new InvalidOperationException("Missing deterministic year indexes.");
+
+        if (yearIndexes.Length < config.SimulationRounds * config.SimulationYears)
         {
-            var contents = reader.ReadToEnd();
-            var historical_data = JsonSerializer.Deserialize<HistoricalMarketData[]>(contents, new JsonSerializerOptions() { TypeInfoResolver = SourceGenerationContext.Default });
-            var simulation_results = compute_simulation(simulation_config, historical_data!);
-            var stats = compute_stats(simulation_config, simulation_results);
-            return new StatResults() { years = stats };
+            throw new InvalidOperationException("Not enough deterministic year indexes.");
         }
-    }
 
-    private Simulation compute_simulation(SimulationConfig simulation_config, HistoricalMarketData[] historical_data)
-    {
-        // Compute 100k Trials on 8 threads, append results to Simuluation
-        var simulation = new Simulation();
-
-        // https://learn.microsoft.com/en-us/dotnet/standard/parallel-programming/how-to-speed-up-small-loop-bodies
-        // var rangePartitioner = Partitioner.Create(0, simulation_config.simulation_rounds);
-        // Console.WriteLine("RangePartitioner");
-        // Parallel.ForEach(rangePartitioner, (range, loopState) => {
-        //     for (int i = range.Item1; i < range.Item2; i++)
-        //     {
-        //         var trial = compute_trial(simulation_config, historical_data);
-        //         simulation.trials.Add(trial);
-        //     }
-        // });
-
-        Console.WriteLine("Parallel.ForEach");
-        Parallel.ForEach(Enumerable.Range(0, simulation_config.simulation_rounds),
-            (_) =>
+        var shard = RunSimulationShard(config, data, (trial, year) => {
+            var yearIndex = yearIndexes[(trial * config.SimulationYears) + year];
+            if (yearIndex < 0 || yearIndex >= data.Length)
             {
-                var trial = compute_trial(simulation_config, historical_data);
-                simulation.trials.Add(trial);
-            });
+                throw new InvalidOperationException("Deterministic year index is out of range.");
+            }
 
-        Console.WriteLine("Completed {0} Trials", simulation.trials.Count);
+            return yearIndex;
+        });
 
-        return simulation;
+        return JsonSerializer.Serialize(shard, SourceGenerationContext.Default.SimulationShard);
     }
-    private Trial compute_trial(SimulationConfig simulation_config, HistoricalMarketData[] historical_data)
-    {
-        // TODO - validate that stocks + bonds + cash == 1.0
-        var trial = new Trial();
-        var withdrawal = simulation_config.savings * simulation_config.withdrawal_rate;
-        var initial_withdrawal = withdrawal;
 
-        foreach (var year in Enumerable.Range(0, simulation_config.simulation_years))
+    public static SimulationShard RunSimulationShard(SimulationConfig config)
+    {
+        var data = LoadHistoricalData();
+        return RunSimulationShard(config, data, (_trial, _year) => Random.Shared.Next(data.Length));
+    }
+
+    private static SimulationShard RunSimulationShard(
+        SimulationConfig config,
+        HistoricalMarketData[] data,
+        Func<int, int, int> yearIndexAt)
+    {
+        var nominalByYear = CreateDoubleGrid(config);
+        var adjustedByYear = CreateDoubleGrid(config);
+        var shortfallByYear = CreateDoubleGrid(config);
+        var exhaustedByYear = CreateBoolGrid(config);
+
+        for (var trial = 0; trial < config.SimulationRounds; trial++)
         {
-
-            // Pick a random year's performance 
-            var rand_index = Random.Shared.NextDouble();
-            var year_index = Convert.ToInt32(Math.Floor(rand_index * historical_data.Length));
-            var random_historical_year = historical_data[year_index];
-
-            double starting_balance;
-
-
-            if (year == 0)
+            var years = ComputeTrial(config, data, year => yearIndexAt(trial, year));
+            for (var year = 0; year < config.SimulationYears; year++)
             {
-                starting_balance = simulation_config.savings;
+                var singleYear = years[year];
+                nominalByYear[year][trial] = singleYear.EndingBalance;
+                adjustedByYear[year][trial] = singleYear.EndingBalanceTodaysDollars;
+                shortfallByYear[year][trial] = singleYear.Shortfall;
+                exhaustedByYear[year][trial] = singleYear.IsExhausted;
+            }
+        }
+
+        return new SimulationShard(nominalByYear, adjustedByYear, shortfallByYear, exhaustedByYear);
+    }
+
+    private static SingleYear[] ComputeTrial(
+        SimulationConfig config,
+        HistoricalMarketData[] data,
+        Func<int, int> yearIndexAt)
+    {
+        var trial = new SingleYear[config.SimulationYears];
+        var withdrawal = config.Savings * config.WithdrawalRate;
+        var initialWithdrawal = withdrawal;
+
+        for (var year = 0; year < config.SimulationYears; year++)
+        {
+            var historicalYear = data[yearIndexAt(year)];
+            var startingBalance = year == 0 ? config.Savings : trial[year - 1].EndingBalance;
+            var annualReturn =
+                historicalYear.Stocks * config.Stocks +
+                historicalYear.Bonds * config.Bonds +
+                historicalYear.Cash * config.Cash;
+
+            var shortfall = 0.0;
+            double endingBalance;
+            if (startingBalance < withdrawal)
+            {
+                shortfall = withdrawal - startingBalance;
+                endingBalance = 0.0;
             }
             else
             {
-                var prev_year = trial.years.Last();
-                starting_balance = prev_year.ending_balance;
+                endingBalance = Math.Max(0.0, (startingBalance - withdrawal) * (1.0 + annualReturn));
             }
 
-            // Weight the growth per asset class relative to portfolio split; compute the rate of return for the year with the given portfolio classure
-            var arr = random_historical_year.stocks * simulation_config.stocks
-                + random_historical_year.bonds * simulation_config.bonds
-                + random_historical_year.cash * simulation_config.cash;
+            var cumulativeInflation = withdrawal / initialWithdrawal;
+            trial[year] = new SingleYear(
+                endingBalance,
+                endingBalance / cumulativeInflation,
+                shortfall,
+                endingBalance == 0.0);
 
-            var ending_balance = starting_balance;
-
-            withdrawal *= 1.0 + random_historical_year.cpi;
-            if (ending_balance < withdrawal)
-            {
-                // If we run out of money, keep decrementing balance, but don't compute growth rate of assets. 
-                ending_balance -= withdrawal;
-            }
-            else
-            {
-                // Apply growth factor to balance at end of year
-                ending_balance = (ending_balance - withdrawal) * (1.0 + arr);
-            }
-
-            var current_year = new SingleYear()
-            {
-                year = year,
-                starting_balance = starting_balance,
-                withdrawal = withdrawal,
-                ending_balance = ending_balance,
-                cumulative_inflation = withdrawal / initial_withdrawal,
-                ending_balance_todays_dollars = ending_balance / (withdrawal / initial_withdrawal),
-            };
-
-            trial.years.Add(current_year);
+            withdrawal *= 1.0 + historicalYear.Cpi;
         }
+
         return trial;
     }
 
-
-
-    public StatsSingleYear[] compute_stats(SimulationConfig simulation_config, Simulation simulation)
+    private static HistoricalMarketData[] LoadHistoricalData()
     {
-        var results = new ConcurrentBag<StatsSingleYear>();
-        // var rangePartitioner = Partitioner.Create(0, simulation_config.simulation_years);
-        // Parallel.ForEach(rangePartitioner, (range, loopState) => {
-        //     for (int year = range.Item1; year < range.Item2; year++)
-        //     {
-        //         // Sort each of the fifty years and then compute quantiles  in a thread and rost by ending balance
-        //         var year_slice = simulation.trials
-        //             .Select((trial) => trial.years[year] )
-        //             .OrderBy((a) =>  a.ending_balance ).ToArray();
+        if (historicalData is not null)
+        {
+            return historicalData;
+        }
 
-        //         var stats = new StatsSingleYear() {
-        //             year = year,
-        //             min = year_slice[0].ending_balance,
-        //             max = year_slice[(simulation_config.simulation_rounds - 1)].ending_balance,
-        //             mean = year_slice.Select(y => y.ending_balance).Average(),
-        //             median = year_slice[(simulation_config.simulation_rounds / 2)].ending_balance,
-        //             quantiles = new List<double>(),
-        //             stddev = StandardDeviation(year_slice.Select(y => y.ending_balance))
-        //         };
-        //         results.Add(stats);
-        //     }
-        // });
+        using var stream = Assembly.GetExecutingAssembly()
+            .GetManifestResourceStream("historicalMarketData.json")
+            ?? throw new InvalidOperationException("Embedded historical market data was not found.");
+        historicalData = JsonSerializer.Deserialize(stream, SourceGenerationContext.Default.HistoricalMarketDataArray)
+            ?? throw new InvalidOperationException("Embedded historical market data could not be parsed.");
 
-        Parallel.ForEach(Enumerable.Range(0, simulation_config.simulation_years), (year) => {
-
-            // Sort each of the fifty years and then compute quantiles  in a thread and rost by ending balance
-            var year_slice = simulation.trials
-                .Select((trial) => trial.years[year] )
-                .OrderBy((a) =>  a.ending_balance ).ToArray();
-
-            var stats = new StatsSingleYear() {
-                year = year,
-                min = year_slice[0].ending_balance,
-                max = year_slice[(simulation_config.simulation_rounds - 1)].ending_balance,
-                mean = year_slice.Select(y => y.ending_balance).Average(),
-                median = year_slice[(simulation_config.simulation_rounds / 2)].ending_balance,
-                quantiles = new List<double>(),
-                stddev = StandardDeviation(year_slice.Select(y => y.ending_balance))
-            };
-            results.Add(stats);
-        });
-
-        return results.OrderBy(r => r.year).ToArray();
+        return historicalData;
     }
 
-    public static double StandardDeviation(IEnumerable<double> values)
+    private static double[][] CreateDoubleGrid(SimulationConfig config)
     {
-        double avg = values.Average();
-        return Math.Sqrt(values.Average(v => Math.Pow(v - avg, 2)));
+        return Enumerable.Range(0, config.SimulationYears)
+            .Select(_ => new double[config.SimulationRounds])
+            .ToArray();
     }
 
+    private static bool[][] CreateBoolGrid(SimulationConfig config)
+    {
+        return Enumerable.Range(0, config.SimulationYears)
+            .Select(_ => new bool[config.SimulationRounds])
+            .ToArray();
+    }
 }
