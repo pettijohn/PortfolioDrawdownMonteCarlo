@@ -14585,8 +14585,22 @@ var SimulationRuntime = /* @__PURE__ */ function(SimulationRuntime2) {
   SimulationRuntime2["RustWasm"] = "rustWasm";
   SimulationRuntime2["DotNetWasm"] = "dotNetWasm";
   SimulationRuntime2["GoWasm"] = "goWasm";
+  SimulationRuntime2["All"] = "all";
   return SimulationRuntime2;
 }(SimulationRuntime || {});
+var timedRuntimes = [
+  SimulationRuntime.TypeScript,
+  SimulationRuntime.RustWasm,
+  SimulationRuntime.DotNetWasm,
+  SimulationRuntime.GoWasm
+];
+var runtimeLabels = {
+  [SimulationRuntime.TypeScript]: "TypeScript",
+  [SimulationRuntime.RustWasm]: "Rust (WASM)",
+  [SimulationRuntime.DotNetWasm]: "C# (.NET WASM)",
+  [SimulationRuntime.GoWasm]: "Go (WASM)",
+  [SimulationRuntime.All]: "All"
+};
 var App = class extends ae {
   constructor(props) {
     super(props);
@@ -14600,13 +14614,13 @@ var App = class extends ae {
       simulationYears: 50,
       chartDollarMode: ChartDollarMode.Nominal,
       runtime: SimulationRuntime.TypeScript,
+      runtimeTimings: [],
       onChange: void 0
     };
     this.state = this.stateFromUrl(defaultState);
     this.handleAllocationChange = this.handleAllocationChange.bind(this);
     this.handleChartDollarModeChange = this.handleChartDollarModeChange.bind(this);
     this.handleRuntimeChange = this.handleRuntimeChange.bind(this);
-    this.handleWorkerMessage = this.handleWorkerMessage.bind(this);
     this.runSimulation = this.runSimulation.bind(this);
     this.updateUrlFromState = this.updateUrlFromState.bind(this);
   }
@@ -14618,6 +14632,9 @@ var App = class extends ae {
       results: this.state.simulationResults,
       dollarMode: this.state.chartDollarMode
     });
+    const runtimeTimings = this.state.runtime === SimulationRuntime.All && this.state.runtimeTimings.length > 0 ? /* @__PURE__ */ me("ul", null, this.state.runtimeTimings.map((timing) => /* @__PURE__ */ me("li", {
+      key: timing.runtime
+    }, timing.label, ": ", this.formatRuntimeTiming(timing)))) : void 0;
     return /* @__PURE__ */ me("div", null, /* @__PURE__ */ me(Allocation, {
       stocksPercent: this.state.stocksPercent,
       bondsPercent: this.state.bondsPercent,
@@ -14627,7 +14644,7 @@ var App = class extends ae {
       simulationRounds: this.state.simulationRounds,
       simulationYears: this.state.simulationYears,
       onChange: this.handleAllocationChange
-    }), /* @__PURE__ */ me("label", {
+    }), /* @__PURE__ */ me("div", null, /* @__PURE__ */ me("label", {
       htmlFor: "chartDollarMode"
     }, "Show chart in "), /* @__PURE__ */ me("select", {
       id: "chartDollarMode",
@@ -14645,16 +14662,18 @@ var App = class extends ae {
       onChange: this.handleRuntimeChange
     }, /* @__PURE__ */ me("option", {
       value: SimulationRuntime.TypeScript
-    }, "TypeScript"), /* @__PURE__ */ me("option", {
+    }, runtimeLabels[SimulationRuntime.TypeScript]), /* @__PURE__ */ me("option", {
       value: SimulationRuntime.RustWasm
-    }, "Rust (WASM)"), /* @__PURE__ */ me("option", {
+    }, runtimeLabels[SimulationRuntime.RustWasm]), /* @__PURE__ */ me("option", {
       value: SimulationRuntime.DotNetWasm
-    }, "C# (.NET WASM)"), /* @__PURE__ */ me("option", {
+    }, runtimeLabels[SimulationRuntime.DotNetWasm]), /* @__PURE__ */ me("option", {
       value: SimulationRuntime.GoWasm
-    }, "Go (WASM)")), "\xA0", /* @__PURE__ */ me("button", {
+    }, runtimeLabels[SimulationRuntime.GoWasm]), /* @__PURE__ */ me("option", {
+      value: SimulationRuntime.All
+    }, runtimeLabels[SimulationRuntime.All])), "\xA0", /* @__PURE__ */ me("button", {
       id: "run",
       onClick: this.runSimulation
-    }, "Run Simulation"), this.state.simulationState, charts);
+    }, "Run Simulation"), this.state.simulationState), runtimeTimings, charts);
   }
   handleChartDollarModeChange(event) {
     this.setState({
@@ -14662,8 +14681,10 @@ var App = class extends ae {
     }, this.updateUrlFromState);
   }
   handleRuntimeChange(event) {
+    const runtime = event.target.value;
     this.setState({
-      runtime: event.target.value
+      runtime,
+      runtimeTimings: []
     }, this.updateUrlFromState);
   }
   async runSimulation(_event) {
@@ -14679,72 +14700,171 @@ var App = class extends ae {
     };
     this.simulationWorker?.terminate();
     const requestId = ++this.simulationRequestId;
-    const worker = new Worker(this.workerUrl(), {
-      type: "module"
+    const selectedRuntime = this.state.runtime;
+    if (selectedRuntime === SimulationRuntime.All) {
+      await this.runAllSimulations(requestId, inputs);
+      return;
+    }
+    this.setState({
+      simulationState: SimulationState.Initializing,
+      runtimeTimings: []
     });
-    this.simulationWorker = worker;
-    worker.onmessage = this.handleWorkerMessage;
-    worker.onerror = (error) => {
+    try {
+      const result = await this.runRuntime(selectedRuntime, requestId, inputs);
       if (requestId !== this.simulationRequestId) {
         return;
       }
-      this.simulationWorker?.terminate();
-      this.simulationWorker = void 0;
+      this.setState({
+        simulationResults: result.results ?? void 0,
+        simulationState: SimulationState.Stopped
+      });
+    } catch (error) {
+      if (requestId !== this.simulationRequestId) {
+        return;
+      }
       this.setState({
         simulationState: SimulationState.Stopped
       });
       console.error(error);
-    };
-    this.setState({
-      simulationState: SimulationState.Initializing
-    });
-    const message = {
-      type: "run",
-      requestId,
-      config: inputs
-    };
-    worker.postMessage(message);
+    }
   }
-  workerUrl() {
-    if (this.state.runtime === SimulationRuntime.RustWasm) {
+  async runAllSimulations(requestId, inputs) {
+    const initialTimings = timedRuntimes.map((runtime) => ({
+      runtime,
+      label: runtimeLabels[runtime],
+      status: "pending"
+    }));
+    this.setState({
+      simulationState: SimulationState.Initializing,
+      runtimeTimings: initialTimings,
+      simulationResults: void 0
+    });
+    for (const runtime of timedRuntimes) {
+      if (requestId !== this.simulationRequestId) {
+        return;
+      }
+      this.updateRuntimeTiming(runtime, {
+        status: "running",
+        durationMs: void 0,
+        message: void 0
+      });
+      this.setState({
+        simulationState: `Running ${runtimeLabels[runtime]}`
+      });
+      try {
+        const result = await this.runRuntime(runtime, requestId, inputs);
+        if (requestId !== this.simulationRequestId) {
+          return;
+        }
+        this.updateRuntimeTiming(runtime, {
+          status: "complete",
+          durationMs: result.durationMs,
+          message: void 0
+        });
+        this.setState({
+          simulationResults: result.results ?? void 0
+        });
+      } catch (error) {
+        if (requestId !== this.simulationRequestId) {
+          return;
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        this.updateRuntimeTiming(runtime, {
+          status: "error",
+          message
+        });
+        console.error(error);
+      }
+    }
+    if (requestId === this.simulationRequestId) {
+      this.setState({
+        simulationState: SimulationState.Stopped
+      });
+    }
+  }
+  updateRuntimeTiming(runtime, patch) {
+    this.setState((state) => ({
+      runtimeTimings: state.runtimeTimings.map((timing) => timing.runtime === runtime ? {
+        ...timing,
+        ...patch
+      } : timing)
+    }));
+  }
+  runRuntime(runtime, requestId, inputs) {
+    return new Promise((resolve, reject) => {
+      const startedAt = performance.now();
+      const worker = new Worker(this.workerUrl(runtime), {
+        type: "module"
+      });
+      this.simulationWorker = worker;
+      worker.onmessage = (event) => {
+        const message2 = event.data;
+        if (message2.requestId !== requestId) {
+          return;
+        }
+        switch (message2.type) {
+          case "state":
+            this.setState({
+              simulationState: message2.state
+            });
+            break;
+          case "result":
+            worker.terminate();
+            if (this.simulationWorker === worker) {
+              this.simulationWorker = void 0;
+            }
+            resolve({
+              results: message2.results ?? void 0,
+              durationMs: Math.round(performance.now() - startedAt)
+            });
+            break;
+          case "error":
+            worker.terminate();
+            if (this.simulationWorker === worker) {
+              this.simulationWorker = void 0;
+            }
+            reject(new Error(message2.message));
+            break;
+        }
+      };
+      worker.onerror = (error) => {
+        worker.terminate();
+        if (this.simulationWorker === worker) {
+          this.simulationWorker = void 0;
+        }
+        reject(new Error(error.message));
+      };
+      const message = {
+        type: "run",
+        requestId,
+        config: inputs
+      };
+      worker.postMessage(message);
+    });
+  }
+  workerUrl(runtime) {
+    if (runtime === SimulationRuntime.RustWasm) {
       return "./out/rustMonteCarloWorker.js";
     }
-    if (this.state.runtime === SimulationRuntime.DotNetWasm) {
+    if (runtime === SimulationRuntime.DotNetWasm) {
       return "./out/dotNetMonteCarloWorker.js";
     }
-    if (this.state.runtime === SimulationRuntime.GoWasm) {
+    if (runtime === SimulationRuntime.GoWasm) {
       return "./out/goMonteCarloWorker.js";
     }
     return "./out/monteCarlo.worker.js";
   }
-  handleWorkerMessage(event) {
-    const message = event.data;
-    if (message.requestId !== this.simulationRequestId) {
-      return;
+  formatRuntimeTiming(timing) {
+    if (timing.status === "running") {
+      return "running";
     }
-    switch (message.type) {
-      case "state":
-        this.setState({
-          simulationState: message.state
-        });
-        break;
-      case "result":
-        this.simulationWorker?.terminate();
-        this.simulationWorker = void 0;
-        this.setState({
-          simulationResults: message.results ?? void 0,
-          simulationState: SimulationState.Stopped
-        });
-        break;
-      case "error":
-        this.simulationWorker?.terminate();
-        this.simulationWorker = void 0;
-        this.setState({
-          simulationState: SimulationState.Stopped
-        });
-        console.error(message.message);
-        break;
+    if (timing.status === "pending") {
+      return "pending";
     }
+    if (timing.status === "error") {
+      return `failed${timing.message ? ` - ${timing.message}` : ""}`;
+    }
+    return `${timing.durationMs ?? 0} ms`;
   }
   setAllocationState(stocks, bonds, cash) {
     this.setState(function(state, _props) {
@@ -14844,7 +14964,7 @@ var App = class extends ae {
       state.chartDollarMode = chartDollarMode;
     }
     const runtime = params.get("runtime");
-    if (runtime === SimulationRuntime.TypeScript || runtime === SimulationRuntime.RustWasm || runtime === SimulationRuntime.DotNetWasm || runtime === SimulationRuntime.GoWasm) {
+    if (runtime === SimulationRuntime.TypeScript || runtime === SimulationRuntime.RustWasm || runtime === SimulationRuntime.DotNetWasm || runtime === SimulationRuntime.GoWasm || runtime === SimulationRuntime.All) {
       state.runtime = runtime;
     }
     return state;

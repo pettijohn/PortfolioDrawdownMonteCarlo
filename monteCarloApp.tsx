@@ -5,23 +5,47 @@ import * as ReactDOM from "https://esm.sh/react-dom@17.0.2?pin=v74";
 
 
 import { Allocation, AllocationProps } from "./allocation.tsx";
-import { SimulationConfig, SimulationState, SimulationStatus } from "./monteCarlo.ts";
+import { SimulationConfig, SimulationState, SimulationStatus, StatResults } from "./monteCarlo.ts";
 import { SimulationWorkerMessage, SimulationWorkerRequest } from "./monteCarloWorkerMessages.ts";
 import { ChartDollarMode, Charts } from "./charts.tsx";
 
+type RuntimeTiming = {
+  runtime: SimulationRuntime;
+  label: string;
+  durationMs?: number;
+  status: "pending" | "running" | "complete" | "error";
+  message?: string;
+};
 
 interface AppState extends AllocationProps {
   simulationState?: SimulationStatus,
   chartDollarMode: ChartDollarMode,
-  runtime: SimulationRuntime
+  runtime: SimulationRuntime,
+  runtimeTimings: RuntimeTiming[]
 }
 
 enum SimulationRuntime {
   TypeScript = "typescript",
   RustWasm = "rustWasm",
   DotNetWasm = "dotNetWasm",
-  GoWasm = "goWasm"
+  GoWasm = "goWasm",
+  All = "all"
 }
+
+const timedRuntimes = [
+  SimulationRuntime.TypeScript,
+  SimulationRuntime.RustWasm,
+  SimulationRuntime.DotNetWasm,
+  SimulationRuntime.GoWasm,
+];
+
+const runtimeLabels: Record<SimulationRuntime, string> = {
+  [SimulationRuntime.TypeScript]: "TypeScript",
+  [SimulationRuntime.RustWasm]: "Rust (WASM)",
+  [SimulationRuntime.DotNetWasm]: "C# (.NET WASM)",
+  [SimulationRuntime.GoWasm]: "Go (WASM)",
+  [SimulationRuntime.All]: "All",
+};
 
 class App extends React.Component<Record<never,never>, AppState> {
   constructor(props: Record<never,never>) {
@@ -36,6 +60,7 @@ class App extends React.Component<Record<never,never>, AppState> {
       simulationYears: 50,
       chartDollarMode: ChartDollarMode.Nominal,
       runtime: SimulationRuntime.TypeScript,
+      runtimeTimings: [],
       onChange: undefined
     };
     this.state = this.stateFromUrl(defaultState);
@@ -44,7 +69,6 @@ class App extends React.Component<Record<never,never>, AppState> {
     this.handleAllocationChange = this.handleAllocationChange.bind(this);
     this.handleChartDollarModeChange = this.handleChartDollarModeChange.bind(this);
     this.handleRuntimeChange = this.handleRuntimeChange.bind(this);
-    this.handleWorkerMessage = this.handleWorkerMessage.bind(this);
     this.runSimulation = this.runSimulation.bind(this);
     this.updateUrlFromState = this.updateUrlFromState.bind(this);
   }
@@ -57,6 +81,17 @@ class App extends React.Component<Record<never,never>, AppState> {
     if (this.state.simulationResults)
       charts = <Charts results={this.state.simulationResults} dollarMode={this.state.chartDollarMode} />
 
+    const runtimeTimings = this.state.runtime === SimulationRuntime.All && this.state.runtimeTimings.length > 0
+      ? (
+        <ul>
+          {this.state.runtimeTimings.map(timing => (
+            <li key={timing.runtime}>
+              {timing.label}: {this.formatRuntimeTiming(timing)}
+            </li>
+          ))}
+        </ul>
+      )
+      : undefined;
 
     return (
     <div>
@@ -64,19 +99,23 @@ class App extends React.Component<Record<never,never>, AppState> {
           startingBalance={this.state.startingBalance} drawdownRate={this.state.drawdownRate} simulationRounds={this.state.simulationRounds}
           simulationYears={this.state.simulationYears} onChange={this.handleAllocationChange}
       />
-      <label htmlFor="chartDollarMode">Show chart in </label>
-      <select id="chartDollarMode" value={this.state.chartDollarMode} onChange={this.handleChartDollarModeChange}>
-        <option value={ChartDollarMode.Nominal}>Real Dollars</option>
-        <option value={ChartDollarMode.InflationAdjusted}>Inflation-Adjusted (Today's Dollars)</option>
-      </select>&nbsp;
-      <label htmlFor="runtime">Runtime: </label>
-      <select id="runtime" value={this.state.runtime} onChange={this.handleRuntimeChange}>
-        <option value={SimulationRuntime.TypeScript}>TypeScript</option>
-        <option value={SimulationRuntime.RustWasm}>Rust (WASM)</option>
-        <option value={SimulationRuntime.DotNetWasm}>C# (.NET WASM)</option>
-        <option value={SimulationRuntime.GoWasm}>Go (WASM)</option>
-      </select>&nbsp;
-      <button id="run" onClick={this.runSimulation}>Run Simulation</button>{this.state.simulationState}
+      <div>
+        <label htmlFor="chartDollarMode">Show chart in </label>
+        <select id="chartDollarMode" value={this.state.chartDollarMode} onChange={this.handleChartDollarModeChange}>
+          <option value={ChartDollarMode.Nominal}>Real Dollars</option>
+          <option value={ChartDollarMode.InflationAdjusted}>Inflation-Adjusted (Today's Dollars)</option>
+        </select>&nbsp;
+        <label htmlFor="runtime">Runtime: </label>
+        <select id="runtime" value={this.state.runtime} onChange={this.handleRuntimeChange}>
+          <option value={SimulationRuntime.TypeScript}>{runtimeLabels[SimulationRuntime.TypeScript]}</option>
+          <option value={SimulationRuntime.RustWasm}>{runtimeLabels[SimulationRuntime.RustWasm]}</option>
+          <option value={SimulationRuntime.DotNetWasm}>{runtimeLabels[SimulationRuntime.DotNetWasm]}</option>
+          <option value={SimulationRuntime.GoWasm}>{runtimeLabels[SimulationRuntime.GoWasm]}</option>
+          <option value={SimulationRuntime.All}>{runtimeLabels[SimulationRuntime.All]}</option>
+        </select>&nbsp;
+        <button id="run" onClick={this.runSimulation}>Run Simulation</button>{this.state.simulationState}
+      </div>
+      {runtimeTimings}
       {charts}
     </div>
   )
@@ -87,7 +126,11 @@ class App extends React.Component<Record<never,never>, AppState> {
   }
 
   handleRuntimeChange(event: React.ChangeEvent<HTMLSelectElement>) {
-    this.setState({ runtime: event.target.value as SimulationRuntime }, this.updateUrlFromState);
+    const runtime = event.target.value as SimulationRuntime;
+    this.setState({
+      runtime,
+      runtimeTimings: []
+    }, this.updateUrlFromState);
   }
 
   async runSimulation(_event: React.MouseEvent<HTMLButtonElement>) {
@@ -105,70 +148,176 @@ class App extends React.Component<Record<never,never>, AppState> {
     this.simulationWorker?.terminate();
 
     const requestId = ++this.simulationRequestId;
-    const worker = new Worker(this.workerUrl(), { type: "module" });
-    this.simulationWorker = worker;
-    worker.onmessage = this.handleWorkerMessage;
-    worker.onerror = (error) => {
+    const selectedRuntime = this.state.runtime;
+
+    if (selectedRuntime === SimulationRuntime.All) {
+      await this.runAllSimulations(requestId, inputs);
+      return;
+    }
+
+    this.setState({ simulationState: SimulationState.Initializing, runtimeTimings: [] });
+    try {
+      const result = await this.runRuntime(selectedRuntime, requestId, inputs);
       if (requestId !== this.simulationRequestId) {
         return;
       }
 
-      this.simulationWorker?.terminate();
-      this.simulationWorker = undefined;
+      this.setState({
+        simulationResults: result.results ?? undefined,
+        simulationState: SimulationState.Stopped
+      });
+    } catch (error) {
+      if (requestId !== this.simulationRequestId) {
+        return;
+      }
+
       this.setState({ simulationState: SimulationState.Stopped });
       console.error(error);
-    };
-
-    this.setState({ simulationState: SimulationState.Initializing });
-
-    const message: SimulationWorkerRequest = {
-      type: "run",
-      requestId,
-      config: inputs
-    };
-    worker.postMessage(message);
+    }
   }
 
-  workerUrl(): string {
-    if (this.state.runtime === SimulationRuntime.RustWasm) {
+  async runAllSimulations(requestId: number, inputs: SimulationConfig) {
+    const initialTimings = timedRuntimes.map(runtime => ({
+      runtime,
+      label: runtimeLabels[runtime],
+      status: "pending" as const,
+    }));
+
+    this.setState({
+      simulationState: SimulationState.Initializing,
+      runtimeTimings: initialTimings,
+      simulationResults: undefined,
+    });
+
+    for (const runtime of timedRuntimes) {
+      if (requestId !== this.simulationRequestId) {
+        return;
+      }
+
+      this.updateRuntimeTiming(runtime, { status: "running", durationMs: undefined, message: undefined });
+      this.setState({ simulationState: `Running ${runtimeLabels[runtime]}` });
+
+      try {
+        const result = await this.runRuntime(runtime, requestId, inputs);
+        if (requestId !== this.simulationRequestId) {
+          return;
+        }
+
+        this.updateRuntimeTiming(runtime, {
+          status: "complete",
+          durationMs: result.durationMs,
+          message: undefined,
+        });
+        this.setState({ simulationResults: result.results ?? undefined });
+      } catch (error) {
+        if (requestId !== this.simulationRequestId) {
+          return;
+        }
+
+        const message = error instanceof Error ? error.message : String(error);
+        this.updateRuntimeTiming(runtime, { status: "error", message });
+        console.error(error);
+      }
+    }
+
+    if (requestId === this.simulationRequestId) {
+      this.setState({ simulationState: SimulationState.Stopped });
+    }
+  }
+
+  updateRuntimeTiming(runtime: SimulationRuntime, patch: Partial<RuntimeTiming>) {
+    this.setState(state => ({
+      runtimeTimings: state.runtimeTimings.map(timing =>
+        timing.runtime === runtime ? { ...timing, ...patch } : timing
+      )
+    }));
+  }
+
+  runRuntime(runtime: SimulationRuntime, requestId: number, inputs: SimulationConfig): Promise<{
+    results: StatResults | null | undefined;
+    durationMs: number;
+  }> {
+    return new Promise((resolve, reject) => {
+      const startedAt = performance.now();
+      const worker = new Worker(this.workerUrl(runtime), { type: "module" });
+      this.simulationWorker = worker;
+
+      worker.onmessage = (event: MessageEvent<SimulationWorkerMessage>) => {
+        const message = event.data;
+
+        if (message.requestId !== requestId) {
+          return;
+        }
+
+        switch (message.type) {
+          case "state":
+            this.setState({ simulationState: message.state });
+            break;
+          case "result":
+            worker.terminate();
+            if (this.simulationWorker === worker) {
+              this.simulationWorker = undefined;
+            }
+            resolve({
+              results: message.results ?? undefined,
+              durationMs: Math.round(performance.now() - startedAt),
+            });
+            break;
+          case "error":
+            worker.terminate();
+            if (this.simulationWorker === worker) {
+              this.simulationWorker = undefined;
+            }
+            reject(new Error(message.message));
+            break;
+        }
+      };
+
+      worker.onerror = (error) => {
+        worker.terminate();
+        if (this.simulationWorker === worker) {
+          this.simulationWorker = undefined;
+        }
+        reject(new Error(error.message));
+      };
+
+      const message: SimulationWorkerRequest = {
+        type: "run",
+        requestId,
+        config: inputs
+      };
+      worker.postMessage(message);
+    });
+  }
+
+  workerUrl(runtime: SimulationRuntime): string {
+    if (runtime === SimulationRuntime.RustWasm) {
       return "./out/rustMonteCarloWorker.js";
     }
-    if (this.state.runtime === SimulationRuntime.DotNetWasm) {
+    if (runtime === SimulationRuntime.DotNetWasm) {
       return "./out/dotNetMonteCarloWorker.js";
     }
-    if (this.state.runtime === SimulationRuntime.GoWasm) {
+    if (runtime === SimulationRuntime.GoWasm) {
       return "./out/goMonteCarloWorker.js";
     }
 
     return "./out/monteCarlo.worker.js";
   }
 
-  handleWorkerMessage(event: MessageEvent<SimulationWorkerMessage>) {
-    const message = event.data;
-
-    if (message.requestId !== this.simulationRequestId) {
-      return;
+  formatRuntimeTiming(timing: RuntimeTiming): string {
+    if (timing.status === "running") {
+      return "running";
     }
 
-    switch (message.type) {
-      case "state":
-        this.setState({ simulationState: message.state });
-        break;
-      case "result":
-        this.simulationWorker?.terminate();
-        this.simulationWorker = undefined;
-        this.setState({
-          simulationResults: message.results ?? undefined,
-          simulationState: SimulationState.Stopped
-        });
-        break;
-      case "error":
-        this.simulationWorker?.terminate();
-        this.simulationWorker = undefined;
-        this.setState({ simulationState: SimulationState.Stopped });
-        console.error(message.message);
-        break;
+    if (timing.status === "pending") {
+      return "pending";
     }
+
+    if (timing.status === "error") {
+      return `failed${timing.message ? ` - ${timing.message}` : ""}`;
+    }
+
+    return `${timing.durationMs ?? 0} ms`;
   }
 
   setAllocationState(stocks?: number, bonds?: number, cash?: number) {
@@ -289,7 +438,8 @@ class App extends React.Component<Record<never,never>, AppState> {
       runtime === SimulationRuntime.TypeScript ||
       runtime === SimulationRuntime.RustWasm ||
       runtime === SimulationRuntime.DotNetWasm ||
-      runtime === SimulationRuntime.GoWasm
+      runtime === SimulationRuntime.GoWasm ||
+      runtime === SimulationRuntime.All
     ) {
       state.runtime = runtime;
     }
