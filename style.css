@@ -51,15 +51,156 @@
     --bs-body-line-height: 1.5;
     --bs-body-color: #33302e;
     --bs-body-bg: #fff1e5;
-  }
+    --page-surface: rgba(255, 250, 245, 0.84);
+    --page-border: rgba(134, 101, 78, 0.16);
+    --page-shadow: 0 24px 60px rgba(88, 56, 35, 0.12);
+    --chart-frame: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 246, 237, 0.94));
+}
 
+body {
+    margin: 0;
+    color: var(--bs-body-color);
+    background:
+        radial-gradient(circle at top, rgba(255, 205, 156, 0.35), transparent 32rem),
+        linear-gradient(180deg, #fff6ee 0%, #fff1e5 52%, #ffe7d6 100%);
+}
 
+body > div {
+    box-sizing: border-box;
+    width: min(72rem, calc(100% - 2rem));
+    margin: 0 auto;
+    padding: 1.5rem 0 3rem;
+}
+
+.allocation-panel {
+    padding: 1.5rem;
+    border: 1px solid var(--page-border);
+    border-radius: 1.25rem;
+    background: var(--page-surface);
+    box-shadow: var(--page-shadow);
+    backdrop-filter: blur(10px);
+}
+
+.allocation-panel h1,
+.allocation-panel h2 {
+    margin-top: 0;
+}
+
+.allocation-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 1rem;
+}
+
+.allocation-item {
+    display: grid;
+    grid-template-columns: 13em minmax(0, 30em) minmax(12rem, 1fr);
+    align-items: center;
+    gap: 0.85rem 1rem;
+}
 
 input.slider {
     width: 30em;
+    max-width: 100%;
 }
 
 label.slider {
     width: 13em;
     display: inline-flex;
+    font-weight: 600;
+}
+
+.allocation-value {
+    color: rgba(51, 48, 46, 0.8);
+    line-height: 1.45;
+}
+
+.charts-panel {
+    display: grid;
+    gap: 1.25rem;
+    margin-top: 1.5rem;
+}
+
+.chart-card {
+    position: relative;
+    padding: 1rem;
+    border: 1px solid rgba(126, 90, 64, 0.18);
+    border-radius: 1.25rem;
+    background: var(--chart-frame);
+    box-shadow: 0 20px 44px rgba(88, 56, 35, 0.1);
+}
+
+.chart-card canvas {
+    display: block;
+}
+
+.chart-card-primary {
+    min-height: min(34rem, 62vw);
+}
+
+.chart-card-secondary {
+    min-height: min(24rem, 42vw);
+}
+
+#chartDollarMode,
+#runtime,
+#run {
+    margin-bottom: 0.25rem;
+}
+
+@media (max-width: 768px) {
+    body > div {
+        width: min(100% - 1rem, 44rem);
+        padding: 0.75rem 0 2rem;
+    }
+
+    .allocation-panel {
+        padding: 1rem;
+        border-radius: 1rem;
+    }
+
+    .allocation-item {
+        grid-template-columns: 1fr;
+        align-items: start;
+        gap: 0.5rem;
+        padding-bottom: 0.85rem;
+        border-bottom: 1px solid rgba(126, 90, 64, 0.1);
+    }
+
+    .allocation-item:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    input.slider {
+        width: 80vw;
+    }
+
+    label.slider {
+        width: auto;
+    }
+
+    .allocation-value {
+        font-size: 0.95rem;
+    }
+
+    .charts-panel {
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .chart-card {
+        padding: 0.75rem;
+        border-radius: 1rem;
+    }
+
+    .chart-card-primary {
+        min-height: 72vh;
+    }
+
+    .chart-card-secondary {
+        min-height: 56vh;
+    }
 }

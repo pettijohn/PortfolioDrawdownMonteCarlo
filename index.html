@@ -14,5 +14,16 @@
   <div id="root"></div>
   <script src="./out/monteCarlo.bundle.js" type="module"></script>
 
+  <h2>How to Use</h2>
+  <p>This simulates how your nest egg might perform in the drawdown phase of retirement, when you no longer add to it with income.
+    It uses the <a href="https://en.wikipedia.org/wiki/Monte_Carlo_method">Monte Carlo method</a>
+    to simulate how your portfolio performs each year, using real historical data from 1926 to 2015,
+    picking a random year's investment returns &amp; inflation. It does this thousands of times
+    (simulation rounds) and shows statistics to help you understand how likely your portfolio is to last (or not)
+    and the range of how much money you'll end up with.
+  </p>
+  <p>The sliders let you describe your retirement starting point and withdrawal plan. Total starting balance is the size of the portfolio on day one. Drawdown per year is the percentage you plan to withdraw annually, and the app also shows that as dollar amounts per year and per month. Stocks, bonds, and cash control your portfolio allocation, which changes how each simulated historical year affects the portfolio. Simulation rounds controls how many retirement paths are sampled; higher numbers usually give more stable results but take longer to run. Simulation years is how long the model keeps withdrawing from the portfolio.</p>
+  <h2>How to Interpret Results</h2>
+  <p>The first chart shows a range of possible ending balances for each year of retirement. Median is the middle result, mean is the average, and the percentile lines show better and worse cases around that middle. If you switch to inflation-adjusted dollars, the balances are shown in today's purchasing power instead of future nominal dollars. The second chart shows probability of ruin, meaning the percentage of simulation paths where the portfolio has already been exhausted by that year. A rising ruin line means more simulated retirements have run out of money as time goes on.</p>
 </body>
 </html>

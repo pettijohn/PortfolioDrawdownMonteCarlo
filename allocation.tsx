@@ -28,31 +28,31 @@ export class Allocation extends React.Component<AllocationProps> {
 
     override render() {
         return (
-            <div><h1>Portfolio Drawdown Monte Carlo Simulation</h1><h2>Allocation</h2>
-                <ul>
-                    <li><label htmlFor="startingBalance" className="slider">Total starting balance USD:</label>
+            <div className="allocation-panel"><h1>Portfolio Drawdown Monte Carlo Simulation</h1><h2>Allocation</h2>
+                <ul className="allocation-list">
+                    <li className="allocation-item"><label htmlFor="startingBalance" className="slider">Total starting balance USD:</label>
                         <input className="slider" type="range" min="100000" max="20000000" step="100000" id="startingBalance" value={this.props.startingBalance} onChange={this.props.onChange} />
-                        <span>{this.formatter.format(this.props.startingBalance)}</span></li>
-                    <li><label htmlFor="drawdownRate" className="slider">Drawdown per Year:</label>
+                        <span className="allocation-value">{this.formatter.format(this.props.startingBalance)}</span></li>
+                    <li className="allocation-item"><label htmlFor="drawdownRate" className="slider">Drawdown per Year:</label>
                         <input className="slider" type="range" min="0" max="20" step="0.1" value={this.props.drawdownRate} id="drawdownRate" onChange={this.props.onChange} />
-                        <span>{this.props.drawdownRate}%
+                        <span className="allocation-value">{this.props.drawdownRate}%
                             == {this.formatter.format(this.props.startingBalance * (this.props.drawdownRate / 100))} per year
                             == {this.formatter.format(this.props.startingBalance * (this.props.drawdownRate / 100 / 12))} per month</span></li>
-                    <li><label htmlFor="stocksPercent" className="slider">Portfolio Allocation Stocks:</label>
+                    <li className="allocation-item"><label htmlFor="stocksPercent" className="slider">Portfolio Allocation Stocks:</label>
                         <input className="slider" type="range" min="0" max="100" value={this.props.stocksPercent} id="stocksPercent" onChange={this.props.onChange} />
-                        <span>{this.props.stocksPercent}% == {this.formatter.format(this.props.startingBalance * (this.props.stocksPercent / 100))}</span></li>
-                    <li><label htmlFor="bondsPercent" className="slider">Portfolio Allocation Bonds:</label>
+                        <span className="allocation-value">{this.props.stocksPercent}% == {this.formatter.format(this.props.startingBalance * (this.props.stocksPercent / 100))}</span></li>
+                    <li className="allocation-item"><label htmlFor="bondsPercent" className="slider">Portfolio Allocation Bonds:</label>
                         <input className="slider" type="range" min="0" max="100" value={this.props.bondsPercent} id="bondsPercent" onChange={this.props.onChange} />
-                        <span>{this.props.bondsPercent}% == {this.formatter.format(this.props.startingBalance * (this.props.bondsPercent / 100))}</span></li>
-                    <li><label htmlFor="cashPercent" className="slider">Portfolio Allocation Cash:</label>
+                        <span className="allocation-value">{this.props.bondsPercent}% == {this.formatter.format(this.props.startingBalance * (this.props.bondsPercent / 100))}</span></li>
+                    <li className="allocation-item"><label htmlFor="cashPercent" className="slider">Portfolio Allocation Cash:</label>
                         <input className="slider" type="range" min="0" max="100" value={this.props.cashPercent} id="cashPercent" onChange={this.props.onChange} />
-                        <span>{this.props.cashPercent}% == {this.formatter.format(this.props.startingBalance * (this.props.cashPercent / 100))}</span></li>
-                    <li><label htmlFor="simulationRounds" className="slider">Simulation Rounds</label>
+                        <span className="allocation-value">{this.props.cashPercent}% == {this.formatter.format(this.props.startingBalance * (this.props.cashPercent / 100))}</span></li>
+                    <li className="allocation-item"><label htmlFor="simulationRounds" className="slider">Simulation Rounds</label>
                         <input className="slider" type="range" min="1000" max="100000" step="33000" value={this.props.simulationRounds} id="simulationRounds" onChange={this.props.onChange} />
-                        <span>{this.props.simulationRounds}</span></li>
-                    <li><label htmlFor="simulationYears" className="slider">Simulation Years</label>
+                        <span className="allocation-value">{this.props.simulationRounds}</span></li>
+                    <li className="allocation-item"><label htmlFor="simulationYears" className="slider">Simulation Years</label>
                         <input className="slider" type="range" min="5" max="100" step="5" value={this.props.simulationYears} id="simulationYears" onChange={this.props.onChange} />
-                        <span>{this.props.simulationYears}</span></li>
+                        <span className="allocation-value">{this.props.simulationYears}</span></li>
                 </ul> </div>
         )
     }

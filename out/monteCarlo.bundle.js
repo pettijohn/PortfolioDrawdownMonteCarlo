@@ -5921,7 +5921,13 @@ var Allocation = class extends ae {
   }
   formatter;
   render() {
-    return /* @__PURE__ */ me("div", null, /* @__PURE__ */ me("h1", null, "Portfolio Drawdown Monte Carlo Simulation"), /* @__PURE__ */ me("h2", null, "Allocation"), /* @__PURE__ */ me("ul", null, /* @__PURE__ */ me("li", null, /* @__PURE__ */ me("label", {
+    return /* @__PURE__ */ me("div", {
+      className: "allocation-panel"
+    }, /* @__PURE__ */ me("h1", null, "Portfolio Drawdown Monte Carlo Simulation"), /* @__PURE__ */ me("h2", null, "Allocation"), /* @__PURE__ */ me("ul", {
+      className: "allocation-list"
+    }, /* @__PURE__ */ me("li", {
+      className: "allocation-item"
+    }, /* @__PURE__ */ me("label", {
       htmlFor: "startingBalance",
       className: "slider"
     }, "Total starting balance USD:"), /* @__PURE__ */ me("input", {
@@ -5933,7 +5939,11 @@ var Allocation = class extends ae {
       id: "startingBalance",
       value: this.props.startingBalance,
       onChange: this.props.onChange
-    }), /* @__PURE__ */ me("span", null, this.formatter.format(this.props.startingBalance))), /* @__PURE__ */ me("li", null, /* @__PURE__ */ me("label", {
+    }), /* @__PURE__ */ me("span", {
+      className: "allocation-value"
+    }, this.formatter.format(this.props.startingBalance))), /* @__PURE__ */ me("li", {
+      className: "allocation-item"
+    }, /* @__PURE__ */ me("label", {
       htmlFor: "drawdownRate",
       className: "slider"
     }, "Drawdown per Year:"), /* @__PURE__ */ me("input", {
@@ -5945,7 +5955,11 @@ var Allocation = class extends ae {
       value: this.props.drawdownRate,
       id: "drawdownRate",
       onChange: this.props.onChange
-    }), /* @__PURE__ */ me("span", null, this.props.drawdownRate, "% == ", this.formatter.format(this.props.startingBalance * (this.props.drawdownRate / 100)), " per year == ", this.formatter.format(this.props.startingBalance * (this.props.drawdownRate / 100 / 12)), " per month")), /* @__PURE__ */ me("li", null, /* @__PURE__ */ me("label", {
+    }), /* @__PURE__ */ me("span", {
+      className: "allocation-value"
+    }, this.props.drawdownRate, "% == ", this.formatter.format(this.props.startingBalance * (this.props.drawdownRate / 100)), " per year == ", this.formatter.format(this.props.startingBalance * (this.props.drawdownRate / 100 / 12)), " per month")), /* @__PURE__ */ me("li", {
+      className: "allocation-item"
+    }, /* @__PURE__ */ me("label", {
       htmlFor: "stocksPercent",
       className: "slider"
     }, "Portfolio Allocation Stocks:"), /* @__PURE__ */ me("input", {
@@ -5956,7 +5970,11 @@ var Allocation = class extends ae {
       value: this.props.stocksPercent,
       id: "stocksPercent",
       onChange: this.props.onChange
-    }), /* @__PURE__ */ me("span", null, this.props.stocksPercent, "% == ", this.formatter.format(this.props.startingBalance * (this.props.stocksPercent / 100)))), /* @__PURE__ */ me("li", null, /* @__PURE__ */ me("label", {
+    }), /* @__PURE__ */ me("span", {
+      className: "allocation-value"
+    }, this.props.stocksPercent, "% == ", this.formatter.format(this.props.startingBalance * (this.props.stocksPercent / 100)))), /* @__PURE__ */ me("li", {
+      className: "allocation-item"
+    }, /* @__PURE__ */ me("label", {
       htmlFor: "bondsPercent",
       className: "slider"
     }, "Portfolio Allocation Bonds:"), /* @__PURE__ */ me("input", {
@@ -5967,7 +5985,11 @@ var Allocation = class extends ae {
       value: this.props.bondsPercent,
       id: "bondsPercent",
       onChange: this.props.onChange
-    }), /* @__PURE__ */ me("span", null, this.props.bondsPercent, "% == ", this.formatter.format(this.props.startingBalance * (this.props.bondsPercent / 100)))), /* @__PURE__ */ me("li", null, /* @__PURE__ */ me("label", {
+    }), /* @__PURE__ */ me("span", {
+      className: "allocation-value"
+    }, this.props.bondsPercent, "% == ", this.formatter.format(this.props.startingBalance * (this.props.bondsPercent / 100)))), /* @__PURE__ */ me("li", {
+      className: "allocation-item"
+    }, /* @__PURE__ */ me("label", {
       htmlFor: "cashPercent",
       className: "slider"
     }, "Portfolio Allocation Cash:"), /* @__PURE__ */ me("input", {
@@ -5978,7 +6000,11 @@ var Allocation = class extends ae {
       value: this.props.cashPercent,
       id: "cashPercent",
       onChange: this.props.onChange
-    }), /* @__PURE__ */ me("span", null, this.props.cashPercent, "% == ", this.formatter.format(this.props.startingBalance * (this.props.cashPercent / 100)))), /* @__PURE__ */ me("li", null, /* @__PURE__ */ me("label", {
+    }), /* @__PURE__ */ me("span", {
+      className: "allocation-value"
+    }, this.props.cashPercent, "% == ", this.formatter.format(this.props.startingBalance * (this.props.cashPercent / 100)))), /* @__PURE__ */ me("li", {
+      className: "allocation-item"
+    }, /* @__PURE__ */ me("label", {
       htmlFor: "simulationRounds",
       className: "slider"
     }, "Simulation Rounds"), /* @__PURE__ */ me("input", {
@@ -5990,7 +6016,11 @@ var Allocation = class extends ae {
       value: this.props.simulationRounds,
       id: "simulationRounds",
       onChange: this.props.onChange
-    }), /* @__PURE__ */ me("span", null, this.props.simulationRounds)), /* @__PURE__ */ me("li", null, /* @__PURE__ */ me("label", {
+    }), /* @__PURE__ */ me("span", {
+      className: "allocation-value"
+    }, this.props.simulationRounds)), /* @__PURE__ */ me("li", {
+      className: "allocation-item"
+    }, /* @__PURE__ */ me("label", {
       htmlFor: "simulationYears",
       className: "slider"
     }, "Simulation Years"), /* @__PURE__ */ me("input", {
@@ -6002,7 +6032,9 @@ var Allocation = class extends ae {
       value: this.props.simulationYears,
       id: "simulationYears",
       onChange: this.props.onChange
-    }), /* @__PURE__ */ me("span", null, this.props.simulationYears))), " ");
+    }), /* @__PURE__ */ me("span", {
+      className: "allocation-value"
+    }, this.props.simulationYears))), " ");
   }
 };
 
@@ -14495,14 +14527,37 @@ var Charts = class extends ae {
     const data = this.chartData(this.props.results, this.props.dollarMode);
     const ruinData = this.ruinProbabilityChartData(this.props.results);
     const ruinOptions = this.ruinProbabilityChartOptions();
-    return /* @__PURE__ */ me("div", null, /* @__PURE__ */ me(k, {
+    const options = this.chartOptions();
+    return /* @__PURE__ */ me("div", {
+      className: "charts-panel"
+    }, /* @__PURE__ */ me("div", {
+      className: "chart-card chart-card-primary"
+    }, /* @__PURE__ */ me(k, {
       type: "line",
-      data
-    }), /* @__PURE__ */ me(k, {
+      data,
+      options
+    })), /* @__PURE__ */ me("div", {
+      className: "chart-card chart-card-secondary"
+    }, /* @__PURE__ */ me(k, {
       type: "line",
       data: ruinData,
       options: ruinOptions
-    }));
+    })));
+  }
+  chartOptions() {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        intersect: false,
+        mode: "index"
+      },
+      plugins: {
+        legend: {
+          position: "bottom"
+        }
+      }
+    };
   }
   chartData(simulationStats, dollarMode) {
     const stats = Object.values(simulationStats).map((s) => this.selectStats(s, dollarMode));
@@ -14563,10 +14618,17 @@ var Charts = class extends ae {
   }
   ruinProbabilityChartOptions() {
     return {
+      responsive: true,
+      maintainAspectRatio: false,
       scales: {
         y: {
           min: 0,
           max: 100
+        }
+      },
+      plugins: {
+        legend: {
+          position: "bottom"
         }
       }
     };

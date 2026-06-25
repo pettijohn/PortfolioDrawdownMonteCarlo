@@ -42,13 +42,34 @@ export class Charts extends React.Component<ChartsProps> {
         const data = this.chartData(this.props.results, this.props.dollarMode);
         const ruinData = this.ruinProbabilityChartData(this.props.results);
         const ruinOptions = this.ruinProbabilityChartOptions();
+        const options = this.chartOptions();
         
         return (
-            <div>
-                <Chart type="line" data={data} />
-                <Chart type="line" data={ruinData} options={ruinOptions} />
+            <div className="charts-panel">
+                <div className="chart-card chart-card-primary">
+                    <Chart type="line" data={data} options={options} />
+                </div>
+                <div className="chart-card chart-card-secondary">
+                    <Chart type="line" data={ruinData} options={ruinOptions} />
+                </div>
             </div>
         )
+    }
+
+    chartOptions(): ChartOptions<"line"> {
+        return {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: "index",
+            },
+            plugins: {
+                legend: {
+                    position: "bottom",
+                },
+            },
+        };
     }
     
     chartData(simulationStats: StatResults, dollarMode: ChartDollarMode): ChartData<"line", (number)[], unknown> {
@@ -110,11 +131,18 @@ export class Charts extends React.Component<ChartsProps> {
 
     ruinProbabilityChartOptions(): ChartOptions<"line"> {
         return {
+            responsive: true,
+            maintainAspectRatio: false,
             scales: {
                 y: {
                     min: 0,
                     max: 100
                 }
+            },
+            plugins: {
+                legend: {
+                    position: "bottom",
+                },
             }
         };
     }
