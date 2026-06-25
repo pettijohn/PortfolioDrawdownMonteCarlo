@@ -71,6 +71,10 @@ async function runTypeScriptSimulation(
     await Promise.all(shardRounds.map((simulationRounds, shardIndex) => {
         return new Promise<void>((resolve, reject) => {
             const worker = new Worker("./monteCarloShardWorker.js", { type: "module" });
+            const timeoutId = setTimeout(() => {
+                worker.terminate();
+                reject(new Error(`TypeScript shard ${shardIndex + 1} timed out`));
+            }, 120000);
 
             worker.onmessage = (event: MessageEvent<TypeScriptShardMessage>) => {
                 const message = event.data;
@@ -78,6 +82,7 @@ async function runTypeScriptSimulation(
                     return;
                 }
 
+                clearTimeout(timeoutId);
                 worker.terminate();
 
                 if (message.type === "shardError") {
@@ -101,6 +106,7 @@ async function runTypeScriptSimulation(
             };
 
             worker.onerror = (error) => {
+                clearTimeout(timeoutId);
                 worker.terminate();
                 reject(new Error(error.message));
             };
@@ -254,4 +260,3 @@ function runAnalysisPool(
         }
     });
 }
-

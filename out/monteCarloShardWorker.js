@@ -156,17 +156,40 @@ var MonteCarlo = class {
     return trials;
   }
   simulateDrawdownShard(simulationConfig, historicalData) {
-    const trials = this.simulateDrawdown(simulationConfig, historicalData);
     const nominalByYear = [];
     const adjustedByYear = [];
     const shortfallByYear = [];
     const exhaustedByYear = [];
+    const initialWithdrawal = simulationConfig.savings * simulationConfig.withdrawalRate;
     for (let year = 0; year < simulationConfig.simulationYears; year++) {
-      const resultsForYear = Object.values(trials[year]);
-      nominalByYear[year] = resultsForYear.map((t) => t.endingBalance);
-      adjustedByYear[year] = resultsForYear.map((t) => t.endingBalanceTodaysDollars);
-      shortfallByYear[year] = resultsForYear.map((t) => t.shortfall);
-      exhaustedByYear[year] = resultsForYear.map((t) => t.isExhausted);
+      nominalByYear[year] = [];
+      adjustedByYear[year] = [];
+      shortfallByYear[year] = [];
+      exhaustedByYear[year] = [];
+    }
+    for (let trial = 0; trial < simulationConfig.simulationRounds; trial++) {
+      let withdrawal = initialWithdrawal;
+      let startingBalance = simulationConfig.savings;
+      for (let year = 0; year < simulationConfig.simulationYears; year++) {
+        const yearIndex = Math.floor(Math.random() * historicalData.length);
+        const randomHistoricalYear = historicalData[yearIndex];
+        const annualReturn = randomHistoricalYear.stocks * simulationConfig.stocks + randomHistoricalYear.bonds * simulationConfig.bonds + randomHistoricalYear.cash * simulationConfig.cash;
+        let endingBalance = startingBalance;
+        let shortfall = 0;
+        if (startingBalance < withdrawal) {
+          shortfall = withdrawal - startingBalance;
+          endingBalance = 0;
+        } else {
+          endingBalance = Math.max(0, (startingBalance - withdrawal) * (1 + annualReturn));
+        }
+        const cumulativeInflation = withdrawal / initialWithdrawal;
+        nominalByYear[year].push(endingBalance);
+        adjustedByYear[year].push(endingBalance / cumulativeInflation);
+        shortfallByYear[year].push(shortfall);
+        exhaustedByYear[year].push(endingBalance === 0);
+        startingBalance = endingBalance;
+        withdrawal *= 1 + randomHistoricalYear.cpi;
+      }
     }
     return {
       nominalByYear,

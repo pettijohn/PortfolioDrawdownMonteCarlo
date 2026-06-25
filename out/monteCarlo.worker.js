@@ -51,11 +51,16 @@ async function runTypeScriptSimulation(requestId, config) {
       const worker = new Worker("./monteCarloShardWorker.js", {
         type: "module"
       });
+      const timeoutId = setTimeout(() => {
+        worker.terminate();
+        reject(new Error(`TypeScript shard ${shardIndex + 1} timed out`));
+      }, 12e4);
       worker.onmessage = (event) => {
         const message = event.data;
         if (message.requestId !== requestId) {
           return;
         }
+        clearTimeout(timeoutId);
         worker.terminate();
         if (message.type === "shardError") {
           reject(new Error(message.message ?? "TypeScript shard failed"));
@@ -75,6 +80,7 @@ async function runTypeScriptSimulation(requestId, config) {
         resolve();
       };
       worker.onerror = (error) => {
+        clearTimeout(timeoutId);
         worker.terminate();
         reject(new Error(error.message));
       };
